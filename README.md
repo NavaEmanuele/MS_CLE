@@ -5,7 +5,6 @@ Raccolta di script **Python + arcpy** per **ArcMap 10.4** (Python 2.7) utili a v
 - **MS (Microzonazione Sismica)**: popolamento descrizioni, URL e pulizia campi (es. MS1)
 - **GeoTec**: popolamento descrizioni standard (campi `DESCR`) in base ai codici `Tipo_*`
 
-> Nota: nel repository gli script sono salvati senza estensione (`CLE`, `MS1`, …). Funzionano comunque, ma per chiarezza è consigliato rinominarli in `CLE.py`, `MS1.py`, ecc.
 
 ---
 
@@ -49,7 +48,6 @@ Dove configurare:
 - `comuni_info = { ... }` (nome comune, codice, path del `.mdb`)  
 - Percorsi “stampe” (cartella `stampe/CLE_<codice>/...`)
 
-⚠️ Attenzione: i percorsi nel file sono hard-coded (es. `D:\REGIONE LOMBARDIA\...`). Prima di eseguire devi adattarli.
 
 ---
 
@@ -110,20 +108,8 @@ Dove configurare:
 ## Note operative importanti (ArcMap / arcpy)
 
 - Se ArcMap ha layer aperti sugli stessi file, potresti trovarti con lock (`*.lock`). In quel caso chiudi ArcMap o rimuovi i riferimenti ai layer prima di scrivere.
-- Usa percorsi raw `r"D:\..."` o raddoppia i backslash (alcuni path nel tuo script sono già in questa logica).
-- Per gestire più comuni in modo pulito: conviene spostare parametri in un file `config.json` e leggere da lì.
+- Usa percorsi raw `r"D:\..."` o raddoppia i backslash
 
----
-
-## Roadmap suggerita (se vuoi farlo diventare “progetto serio” su GitHub)
-
-- [ ] Rinominare gli script con estensione `.py`
-- [ ] Strutturare una cartella `scripts/` + `examples/`
-- [ ] Centralizzare parametri (config) e aggiungere `argparse`
-- [ ] Aggiungere `.gitignore` per file GIS (gdb, lock, cache)
-- [ ] Aggiungere licenza (MIT / GPL / altro)
-
----
 
 ## Autore
-Huxleyi (Emanuele Nava)
+Emanuele Nava

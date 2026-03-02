@@ -4,12 +4,12 @@ import os
 import re
 
 # Imposta le variabili generali
-COMUNE_NOME = u"Concesio"  # Inserisci il nome del tuo comune
-COMUNE_CODICE = u"017061"  # Inserisci il codice del tuo comune
+COMUNE_NOME = u"NOME_COMUNE"  # Inserisci il nome del tuo comune
+COMUNE_CODICE = u"ISTAT"  # Inserisci il codice del tuo comune
 
 # Percorsi alle cartelle e database
-WORKSPACE_BASE = r"C:\Users\utente\Desktop\consegna_merge\Merge_MS\MS_Concesio"  # Percorso alla cartella\Indagini
-MDB_PATH = os.path.join(WORKSPACE_BASE, "CdI_Tabelle_017061.mdb")  # Percorso al database MDB
+WORKSPACE_BASE = r""  # Percorso alla cartella\Indagini
+MDB_PATH = os.path.join(WORKSPACE_BASE, "PERCORSO_DATABASE")  # Percorso al database MDB
 OUTPUT_FOLDER = WORKSPACE_BASE  # Percorso alla cartella di output dove verranno salvati i file .dbf
 DOCUMENTS_FOLDER = os.path.join(WORKSPACE_BASE, "Documenti")  # Percorso alla cartella Documenti
 

@@ -5,11 +5,11 @@ import os
 arcpy.env.overwriteOutput = True
 
 # Definisci le variabili del comune
-COMUNE_NOME = u"Sarezzo"  # Inserisci il nome del tuo comune
-COMUNE_CODICE = u"017174"  # Inserisci il codice del tuo comune
+COMUNE_NOME = u"NOME_COMUNE"  # Inserisci il nome del tuo comune
+COMUNE_CODICE = u"ISTAT"  # Inserisci il codice del tuo comune
 
 # Definisci il percorso base
-WORKSPACE_BASE = r"C:\Users\utente\Desktop\consegna_merge\Merge_MS\MS_Sarezzo"
+WORKSPACE_BASE = r"PERCORSO_WORKSPACE"
 
 # Percorso alla cartella GeoTec
 WORKSPACE_GEOTEC = os.path.join(WORKSPACE_BASE, "GeoTec")

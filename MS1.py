@@ -6,11 +6,11 @@ import os
 arcpy.env.overwriteOutput = True
 
 # Definisci le variabili del comune
-COMUNE_NOME = u"Anfo"       # Nome del comune
-COMUNE_CODICE = u"017005"    # Codice ISTAT del comune
+COMUNE_NOME = u"NOME_COMUNE"       # Nome del comune
+COMUNE_CODICE = u"CODICE_ISTAT"    # Codice ISTAT del comune
 
 # Definisci il percorso base
-WORKSPACE_BASE = r"D:\REGIONE LOMBARDIA\CONSEGNA_MARZO\MS_Anfo"
+WORKSPACE_BASE = r""
 
 # Percorso alla cartella MS1
 WORKSPACE_MS1 = os.path.join(WORKSPACE_BASE, "MS1")

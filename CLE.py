@@ -6,13 +6,13 @@ import shutil
 # Definisci i percorsi delle directory e dei file
 # NOTA: usiamo doppie backslash in tutte le stringhe
 
-workspace = "D:\REGIONE LOMBARDIA\CONSEGNA_MARZO"  # Percorso padre
+workspace = ""  # Percorso padre
 comuni_info = {
-    "Solferino": {
-        "nome_display": "Solferino",
-        "codice_comune": "020063",
+    "": {
+        "nome_display": "",
+        "codice_comune": "",
         # Qui inseriamo il nome completo del file .mdb
-        "mdb_path": "D:\REGIONE LOMBARDIA\CONSEGNA_MARZO\CLE_Solferino\CLE\CLE_db.mdb"
+        "mdb_path": ""
     }
 }  # Dizionario con informazioni sui comuni
 

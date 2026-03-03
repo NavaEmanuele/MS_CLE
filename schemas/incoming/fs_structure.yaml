@@ -1,13 +1,31 @@
 profiles:
   ms:
-    required_dirs: []
-    required_files_glob: []
+    required_dirs:
+      - Indagini
+      - MS1
+      - MS23
+    required_files_glob:
+      - Indagini/Ind_pu.*
+      - Indagini/Ind_ln.*
+      - MS1/Stab.*
+      - MS1/Instab.*
+      - MS23/Stab.*
+      - MS23/Instab.*
   cle:
     required_dirs: []
     required_files_glob: []
   mscle:
-    required_dirs: []
-    required_files_glob: []
+    required_dirs:
+      - Indagini
+      - MS1
+      - MS23
+    required_files_glob:
+      - Indagini/Ind_pu.*
+      - Indagini/Ind_ln.*
+      - MS1/Stab.*
+      - MS1/Instab.*
+      - MS23/Stab.*
+      - MS23/Instab.*
 warn_on_extra_dirs: false
 ignore_dirs_glob:
   - .pytest_cache

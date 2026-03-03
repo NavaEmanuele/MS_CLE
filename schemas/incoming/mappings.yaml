@@ -1,1 +1,3 @@
-mappings: []
+mappings:
+  - source_glob: MS23/**/*
+    dest: MS2

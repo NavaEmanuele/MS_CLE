@@ -163,6 +163,10 @@ def _load_layers_schema(kind: str) -> dict[str, Any]:
     return _load_schema_by_key(kind, "layers_schema", "layers.yaml")
 
 
+def _load_topology_schema(kind: str) -> dict[str, Any]:
+    return _load_schema_by_key(kind, "topology_schema", "topology.yaml")
+
+
 def _load_mappings_schema() -> dict[str, Any]:
     root = _schemas_root()
     catalog = _load_catalog()
@@ -453,6 +457,80 @@ def _validate_layers(workspace: Path, layers_schema: dict[str, Any]) -> list[Fin
     return findings
 
 
+def _validate_topology(workspace: Path, topology_schema: dict[str, Any]) -> list[Finding]:
+    findings: list[Finding] = []
+    defaults = topology_schema.get("defaults", {})
+    default_threshold = float(defaults.get("min_overlap_area", 0.0))
+    default_micro_severity = str(defaults.get("micro_overlap_severity", "WARN")).upper()
+
+    for rule in topology_schema.get("layers", []):
+        if not isinstance(rule, dict):
+            continue
+        if not bool(rule.get("no_overlaps", False)):
+            continue
+        relpath = rule.get("path")
+        if not isinstance(relpath, str):
+            continue
+
+        shp_path = workspace / relpath
+        if not shp_path.exists():
+            continue
+
+        try:
+            gdf = gpd.read_file(shp_path)
+        except Exception:
+            continue
+
+        if gdf.empty or "geometry" not in gdf.columns:
+            continue
+        geom_types = {str(gt).lower() for gt in gdf.geometry.geom_type.dropna().unique().tolist()}
+        if not any("polygon" in gt for gt in geom_types):
+            continue
+
+        threshold = float(rule.get("min_overlap_area", default_threshold))
+        micro_severity = str(rule.get("micro_overlap_severity", default_micro_severity)).upper()
+        report_micro = bool(rule.get("report_micro_overlap", True))
+
+        sindex = gdf.sindex
+        for i, geom_i in enumerate(gdf.geometry):
+            if geom_i is None or geom_i.is_empty:
+                continue
+            candidates = sindex.intersection(geom_i.bounds)
+            for j in candidates:
+                if j <= i:
+                    continue
+                geom_j = gdf.geometry.iloc[j]
+                if geom_j is None or geom_j.is_empty:
+                    continue
+                if not geom_i.intersects(geom_j):
+                    continue
+                overlap = geom_i.intersection(geom_j)
+                area = float(overlap.area) if not overlap.is_empty else 0.0
+                if area <= 0:
+                    continue
+                if area > threshold:
+                    findings.append(
+                        _mk_finding(
+                            "TOP020",
+                            SEVERITY_BLOCKER,
+                            f"Overlap area {area:.6f} exceeds threshold {threshold:.6f} in {relpath}",
+                            str(shp_path),
+                            {"layer": relpath, "index_a": int(i), "index_b": int(j), "overlap_area": area, "threshold": threshold},
+                        )
+                    )
+                elif report_micro:
+                    findings.append(
+                        _mk_finding(
+                            "TOP021",
+                            micro_severity,
+                            f"Micro-overlap area {area:.6f} below/equal threshold {threshold:.6f} in {relpath}",
+                            str(shp_path),
+                            {"layer": relpath, "index_a": int(i), "index_b": int(j), "overlap_area": area, "threshold": threshold},
+                        )
+                    )
+    return findings
+
+
 def _ingest(zip_path: Path, workspace: Path) -> int:
     findings: list[Finding] = []
     workspace.mkdir(parents=True, exist_ok=True)
@@ -660,6 +738,8 @@ def _validate(workspace: Path, outdir: Path, kind: str | None, profile: str | No
         findings.extend(_validate_fs(workspace, fs_schema, resolved_profile))
         layers_schema = _load_layers_schema(resolved_kind)
         findings.extend(_validate_layers(workspace, layers_schema))
+        topology_schema = _load_topology_schema(resolved_kind)
+        findings.extend(_validate_topology(workspace, topology_schema))
 
     report = Report(
         command="validate",

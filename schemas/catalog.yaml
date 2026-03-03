@@ -2,7 +2,9 @@ kinds:
   delivery:
     fs_schema: delivery/fs_structure.yaml
     layers_schema: delivery/layers.yaml
+    topology_schema: delivery/topology.yaml
   incoming:
     fs_schema: incoming/fs_structure.yaml
     layers_schema: incoming/layers.yaml
+    topology_schema: incoming/topology.yaml
     mappings: incoming/mappings.yaml

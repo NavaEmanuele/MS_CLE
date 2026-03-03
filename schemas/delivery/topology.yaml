@@ -1,0 +1,5 @@
+version: 1
+defaults:
+  min_overlap_area: 0.01
+  micro_overlap_severity: WARN
+layers: []

@@ -5,6 +5,7 @@
 - `python -m huxleyi_ms_cle normalize <path> --out <workspace> [--kind incoming|delivery] [--profile ms|cle|mscle]`
 - `python -m huxleyi_ms_cle validate <workspace> --out <outdir> [--kind incoming|delivery] [--profile ms|cle|mscle]`
 - `python -m huxleyi_ms_cle scan <workspace> --out <json>`
+- `python -m huxleyi_ms_cle build <workspace> --out <outdir> [--kind incoming|delivery] [--profile ms|cle|mscle] [--format shp|gpkg|both] [--zip <zip_path>]`
 
 ## Safety Rules
 - Never commit files under `data_private/`.

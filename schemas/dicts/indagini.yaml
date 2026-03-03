@@ -1,0 +1,13 @@
+mappings:
+  "PA": "Pozzo per Acqua"
+  "GG": "Geologia"
+  "SS": "Sondaggio a carotaggio continuo che intercetta il substrato"
+  "SD": "Sondaggio a distruzione di nucleo"
+  "S": "Sondaggio a carotaggio continuo"
+  "SPT": "Prova penetrometrica in foro (SPT)"
+  "CPT": "Prova penetrometrica statica con punta meccanica (CPT)"
+  "DMT": "Prova dilatometrica"
+  "VT": "Prova scissometrica o Vane Test"
+  "MASW": "MASW"
+  "HVSR": "Microtremori a stazione singola"
+  "ALTRO": "Altro"

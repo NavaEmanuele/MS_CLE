@@ -16,6 +16,7 @@ from typing import Any
 import geopandas as gpd
 import yaml
 
+from .build import build_delivery
 from .reporting import Finding, Report, build_summary, write_report_html, write_report_json
 
 SEVERITY_BLOCKER = "BLOCKER"
@@ -54,6 +55,58 @@ def _copy_path_to_dest(src: Path, dst: Path) -> str:
 def _write_reports(outdir: Path, report: Report) -> None:
     write_report_json(report, outdir / "report.json")
     write_report_html(report, outdir / "report.html")
+
+
+def _write_build_reports(outdir: Path, build_details: dict[str, Any]) -> None:
+    outdir.mkdir(parents=True, exist_ok=True)
+    json_path = outdir / "build_report.json"
+    html_path = outdir / "build_report.html"
+    json_path.write_text(json.dumps(build_details, ensure_ascii=True, indent=2), encoding="utf-8")
+
+    rows = []
+    for layer in build_details.get("layers", []):
+        if not isinstance(layer, dict):
+            continue
+        rows.append(
+            "<tr>"
+            f"<td>{layer.get('layer_relpath', '')}</td>"
+            f"<td>{layer.get('format', '')}</td>"
+            f"<td>{len(layer.get('added_fields', []))}</td>"
+            f"<td>{len(layer.get('renamed_fields', {})) + len(layer.get('field_name_mapping', {}))}</td>"
+            f"<td>{len(layer.get('dropped_fields', []))}</td>"
+            f"<td>{len(layer.get('warnings', []))}</td>"
+            "</tr>"
+        )
+    rows_html = "\n".join(rows) if rows else "<tr><td colspan='6'>No layers processed</td></tr>"
+    summary = build_details.get("summary", {})
+    html = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Build Report</title>
+  <style>
+    body {{ font-family: Arial, sans-serif; margin: 24px; }}
+    table {{ border-collapse: collapse; width: 100%; }}
+    th, td {{ border: 1px solid #ccc; padding: 8px; text-align: left; }}
+    th {{ background: #f4f4f4; }}
+  </style>
+</head>
+<body>
+  <h1>Build Report</h1>
+  <p>Generated at: {build_details.get("generated_at", "")}</p>
+  <p>Layers written: {summary.get("layers_written", 0)} | Records touched: {summary.get("records_touched", 0)} | Warnings: {summary.get("warnings", 0)}</p>
+  <table>
+    <thead>
+      <tr><th>Layer</th><th>Format</th><th>Added</th><th>Renamed</th><th>Dropped</th><th>Warnings</th></tr>
+    </thead>
+    <tbody>
+      {rows_html}
+    </tbody>
+  </table>
+</body>
+</html>
+"""
+    html_path.write_text(html, encoding="utf-8")
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -545,6 +598,43 @@ def _normalize(source_path: Path, out_workspace: Path, kind: str | None, profile
     return 0
 
 
+def _build(
+    workspace: Path,
+    outdir: Path,
+    kind: str | None,
+    profile: str | None,
+    fmt: str,
+    zip_path: Path | None,
+) -> int:
+    findings: list[Finding] = []
+    metadata: dict[str, Any] = {"workspace": str(workspace), "outdir": str(outdir), "kind": kind or "delivery", "format": fmt}
+    if kind == "incoming":
+        findings.append(
+            _mk_finding(
+                "BLD000",
+                SEVERITY_WARN,
+                "Build currently targets delivery layout; incoming kind is accepted but treated as delivery output.",
+                str(workspace),
+            )
+        )
+
+    status, build_findings, build_meta = build_delivery(workspace, outdir, profile, fmt, zip_path)
+    findings.extend(build_findings)
+    metadata.update(build_meta)
+
+    report = Report(
+        command="build",
+        summary=build_summary(findings),
+        findings=findings,
+        metadata=metadata,
+    )
+    _write_reports(outdir, report)
+    build_details = metadata.get("build_details")
+    if isinstance(build_details, dict):
+        _write_build_reports(outdir, build_details)
+    return status
+
+
 def _validate(workspace: Path, outdir: Path, kind: str | None, profile: str | None) -> int:
     findings: list[Finding] = []
     metadata: dict[str, Any] = {"workspace": str(workspace), "outdir": str(outdir)}
@@ -601,6 +691,14 @@ def build_parser() -> argparse.ArgumentParser:
     normalize_parser.add_argument("--kind", choices=["incoming", "delivery"], default="incoming", help="Source package kind")
     normalize_parser.add_argument("--profile", choices=["ms", "cle", "mscle"], help="Workspace profile")
 
+    build_parser = subparsers.add_parser("build", help="Build delivery package from canonical workspace")
+    build_parser.add_argument("workspace", help="Canonical workspace path")
+    build_parser.add_argument("--out", required=True, help="Output delivery directory")
+    build_parser.add_argument("--kind", choices=["incoming", "delivery"], help="Workspace kind")
+    build_parser.add_argument("--profile", choices=["ms", "cle", "mscle"], help="Build profile")
+    build_parser.add_argument("--format", choices=["shp", "gpkg", "both"], default="shp", help="Output layer format")
+    build_parser.add_argument("--zip", dest="zip_path", help="Optional zip path for final package")
+
     scan_parser = subparsers.add_parser("scan", help="Scan workspace shapefiles and output layer metadata")
     scan_parser.add_argument("workspace", help="Workspace directory to scan")
     scan_parser.add_argument("--out", required=True, help="Output JSON path")
@@ -617,6 +715,9 @@ def main(argv: list[str] | None = None) -> int:
             return _validate(Path(args.workspace), Path(args.out), args.kind, args.profile)
         if args.command == "normalize":
             return _normalize(Path(args.path), Path(args.out), args.kind, args.profile)
+        if args.command == "build":
+            zip_path = Path(args.zip_path) if getattr(args, "zip_path", None) else None
+            return _build(Path(args.workspace), Path(args.out), args.kind, args.profile, args.format, zip_path)
         if args.command == "scan":
             return _scan_workspace(Path(args.workspace), Path(args.out))
     except Exception:

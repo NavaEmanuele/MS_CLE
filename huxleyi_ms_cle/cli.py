@@ -794,6 +794,48 @@ def _glob_prefix(source_glob: str) -> str:
     return prefix
 
 
+def _copy_default_workspace_tree(source_path: Path, out_workspace: Path) -> int:
+    ignore_patterns = ["tmp*", "output", "data_private", ".pytest_cache", ".tmp_pytest", "__pycache__"]
+    copied = 0
+    out_resolved = out_workspace.resolve()
+
+    for current_root, dirs, files in os.walk(source_path):
+        current_path = Path(current_root)
+        try:
+            rel_root = current_path.relative_to(source_path)
+        except ValueError:
+            continue
+
+        # Do not recurse into the output workspace if it is inside the source tree.
+        try:
+            current_resolved = current_path.resolve()
+            if current_resolved == out_resolved:
+                dirs[:] = []
+                continue
+        except Exception:
+            pass
+
+        pruned_dirs: list[str] = []
+        for dirname in dirs:
+            rel_dir = str((rel_root / dirname)).replace("\\", "/")
+            if any(fnmatch(dirname, pattern) or fnmatch(rel_dir, pattern) for pattern in ignore_patterns):
+                continue
+            pruned_dirs.append(dirname)
+        dirs[:] = pruned_dirs
+
+        for filename in files:
+            src_file = current_path / filename
+            rel_file = src_file.relative_to(source_path)
+            dst_file = out_workspace / rel_file
+            if src_file.resolve() == dst_file.resolve():
+                continue
+            dst_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_file, dst_file)
+            copied += 1
+
+    return copied
+
+
 def _normalize(source_path: Path, out_workspace: Path, kind: str | None, profile: str | None) -> int:
     source_path = source_path.resolve()
     out_workspace.mkdir(parents=True, exist_ok=True)
@@ -810,6 +852,8 @@ def _normalize(source_path: Path, out_workspace: Path, kind: str | None, profile
         target = out_workspace / dirname
         target.mkdir(parents=True, exist_ok=True)
         created_dirs.append(dirname)
+
+    copied_files_count = _copy_default_workspace_tree(source_path, out_workspace)
 
     mappings_schema = _load_mappings_schema()
     mapped_items: list[dict[str, Any]] = []
@@ -847,12 +891,35 @@ def _normalize(source_path: Path, out_workspace: Path, kind: str | None, profile
                     }
                 )
 
+    moved_files_count = 0
+    ms23_examples: list[dict[str, str]] = []
+    for item in mapped_items:
+        source = item.get("source")
+        dest = item.get("dest")
+        if not isinstance(source, str) or not isinstance(dest, str):
+            continue
+        try:
+            source_rel = str(Path(source).resolve().relative_to(source_path)).replace("\\", "/")
+        except Exception:
+            source_rel = source.replace("\\", "/")
+        try:
+            dest_rel = str(Path(dest).resolve().relative_to(out_workspace.resolve())).replace("\\", "/")
+        except Exception:
+            dest_rel = dest.replace("\\", "/")
+        if source_rel != dest_rel:
+            moved_files_count += 1
+        if source_rel.startswith("MS23/") and len(ms23_examples) < 10:
+            ms23_examples.append({"from": source_rel, "to": dest_rel})
+
     workspace_manifest = {
         "source_path": str(source_path),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "kind": resolved_kind,
         "profile": resolved_profile,
         "created_dirs": created_dirs,
+        "copied_files_count": copied_files_count,
+        "moved_files_count": moved_files_count,
+        "ms23_to_ms2_examples": ms23_examples,
         "mapped_items": mapped_items,
     }
     (out_workspace / "workspace_manifest.json").write_text(

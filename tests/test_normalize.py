@@ -56,8 +56,13 @@ def test_normalize_copies_mdb_files_and_validate_has_no_mdb020(monkeypatch) -> N
     tmp_path.mkdir(parents=True, exist_ok=True)
     try:
         incoming = tmp_path / "incoming_pozzolengo"
+        (incoming / "MS23").mkdir(parents=True, exist_ok=True)
+        (incoming / "GeoTec").mkdir(parents=True, exist_ok=True)
         (incoming / "CLE").mkdir(parents=True, exist_ok=True)
         (incoming / "Indagini").mkdir(parents=True, exist_ok=True)
+        (incoming / "MS23" / "Stab.shp").write_text("fake", encoding="utf-8")
+        (incoming / "GeoTec" / "Geotec.shp").write_text("fake", encoding="utf-8")
+        (incoming / "Indagini" / "Ind_pu.shp").write_text("fake", encoding="utf-8")
         (incoming / "CLE" / "CLE_db_test.mdb").write_text("", encoding="utf-8")
         (incoming / "Indagini" / "CdI_Tabelle_test.mdb").write_text("", encoding="utf-8")
 
@@ -65,8 +70,17 @@ def test_normalize_copies_mdb_files_and_validate_has_no_mdb020(monkeypatch) -> N
         exit_code = main(["normalize", str(incoming), "--out", str(out_workspace), "--kind", "incoming", "--profile", "mscle"])
         assert exit_code == 0
 
+        assert (out_workspace / "GeoTec" / "Geotec.shp").exists()
+        assert (out_workspace / "Indagini" / "Ind_pu.shp").exists()
+        assert (out_workspace / "MS23" / "Stab.shp").exists()
+        assert (out_workspace / "MS2" / "Stab.shp").exists()
         assert (out_workspace / "CLE" / "CLE_db_test.mdb").exists()
         assert (out_workspace / "Indagini" / "CdI_Tabelle_test.mdb").exists()
+
+        manifest = json.loads((out_workspace / "workspace_manifest.json").read_text(encoding="utf-8"))
+        assert manifest["copied_files_count"] >= 5
+        assert manifest["moved_files_count"] >= 1
+        assert any(ex["from"].startswith("MS23/") and ex["to"].startswith("MS2/") for ex in manifest["ms23_to_ms2_examples"])
 
         def _raise(_path):
             raise RuntimeError("driver unavailable")

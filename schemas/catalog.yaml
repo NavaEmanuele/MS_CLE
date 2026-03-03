@@ -3,8 +3,10 @@ kinds:
     fs_schema: delivery/fs_structure.yaml
     layers_schema: delivery/layers.yaml
     topology_schema: delivery/topology.yaml
+    mdb_schema: delivery/mdb.yaml
   incoming:
     fs_schema: incoming/fs_structure.yaml
     layers_schema: incoming/layers.yaml
     topology_schema: incoming/topology.yaml
+    mdb_schema: incoming/mdb.yaml
     mappings: incoming/mappings.yaml

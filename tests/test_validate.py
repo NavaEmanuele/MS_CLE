@@ -42,11 +42,13 @@ def _setup_test_schemas(
                     "fs_schema": "delivery/fs_structure.yaml",
                     "layers_schema": "delivery/layers.yaml",
                     "topology_schema": "delivery/topology.yaml",
+                    "mdb_schema": "delivery/mdb.yaml",
                 },
                 "incoming": {
                     "fs_schema": "incoming/fs_structure.yaml",
                     "layers_schema": "incoming/layers.yaml",
                     "topology_schema": "incoming/topology.yaml",
+                    "mdb_schema": "incoming/mdb.yaml",
                     "mappings": "incoming/mappings.yaml",
                 },
             }
@@ -66,9 +68,11 @@ def _setup_test_schemas(
     )
     _write_yaml(schema_root / "delivery" / "layers.yaml", {"version": 1, "layers": layers})
     _write_yaml(schema_root / "delivery" / "topology.yaml", {"version": 1, "defaults": topology_defaults, "layers": topology_layers})
+    _write_yaml(schema_root / "delivery" / "mdb.yaml", {"version": 1, "mdb_files_glob": [], "tables": [], "relations": []})
     _write_yaml(schema_root / "incoming" / "fs_structure.yaml", {"profiles": {"ms": {"required_dirs": [], "required_files_glob": []}}})
     _write_yaml(schema_root / "incoming" / "layers.yaml", {"version": 1, "layers": []})
     _write_yaml(schema_root / "incoming" / "topology.yaml", {"version": 1, "defaults": topology_defaults, "layers": []})
+    _write_yaml(schema_root / "incoming" / "mdb.yaml", {"version": 1, "mdb_files_glob": [], "tables": [], "relations": []})
     _write_yaml(schema_root / "incoming" / "mappings.yaml", {"mappings": []})
     return schema_root
 

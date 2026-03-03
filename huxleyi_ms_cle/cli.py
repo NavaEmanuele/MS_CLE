@@ -17,6 +17,7 @@ import geopandas as gpd
 import yaml
 
 from .build import build_delivery
+from .mdb import check_tables_and_relations, find_mdb_files, try_read_mdb_tables_pyodbc, write_sqlite
 from .reporting import Finding, Report, build_summary, write_report_html, write_report_json
 
 SEVERITY_BLOCKER = "BLOCKER"
@@ -152,6 +153,8 @@ def _load_schema_by_key(kind: str, key: str, fallback_name: str) -> dict[str, An
             return _load_yaml(candidate)
     if key == "layers_schema":
         return {"version": 1, "layers": []}
+    if key == "mdb_schema":
+        return {"version": 1, "mdb_files_glob": [], "tables": [], "relations": []}
     raise FileNotFoundError(f"No schema found for kind '{kind}' and key '{key}'")
 
 
@@ -165,6 +168,10 @@ def _load_layers_schema(kind: str) -> dict[str, Any]:
 
 def _load_topology_schema(kind: str) -> dict[str, Any]:
     return _load_schema_by_key(kind, "topology_schema", "topology.yaml")
+
+
+def _load_mdb_schema(kind: str) -> dict[str, Any]:
+    return _load_schema_by_key(kind, "mdb_schema", "mdb.yaml")
 
 
 def _load_mappings_schema() -> dict[str, Any]:
@@ -531,6 +538,95 @@ def _validate_topology(workspace: Path, topology_schema: dict[str, Any]) -> list
     return findings
 
 
+def _validate_mdb(workspace: Path, outdir: Path, profile: str, mdb_schema: dict[str, Any]) -> list[Finding]:
+    findings: list[Finding] = []
+    globs = mdb_schema.get("mdb_files_glob", [])
+    if not isinstance(globs, list) or not globs:
+        return findings
+
+    mdb_files = find_mdb_files(workspace, [str(g) for g in globs if isinstance(g, str)])
+    if not mdb_files:
+        sev = SEVERITY_BLOCKER if profile == "cle" else SEVERITY_WARN
+        findings.append(
+            _mk_finding(
+                "MDB020",
+                sev,
+                "MDB file not found for configured glob patterns.",
+                str(workspace),
+                {"mdb_files_glob": globs},
+            )
+        )
+        return findings
+
+    mdb_path = mdb_files[0]
+    try:
+        tables = try_read_mdb_tables_pyodbc(mdb_path)
+    except Exception as exc:
+        findings.append(
+            _mk_finding(
+                "MDB010",
+                SEVERITY_WARN,
+                "MDB not readable via pyodbc. Install Microsoft Access Database Engine/ODBC driver.",
+                str(mdb_path),
+                {"error": str(exc)},
+            )
+        )
+        return findings
+
+    sqlite_path = outdir / "normalized.sqlite"
+    write_sqlite(tables, sqlite_path)
+
+    # Required tables/fields checks
+    for table_def in mdb_schema.get("tables", []):
+        if not isinstance(table_def, dict):
+            continue
+        table_name = table_def.get("name")
+        required_fields = table_def.get("required_fields", [])
+        if not isinstance(table_name, str):
+            continue
+        if table_name not in tables:
+            findings.append(
+                _mk_finding(
+                    "MDB030",
+                    SEVERITY_BLOCKER,
+                    f"Required MDB table missing: {table_name}",
+                    str(sqlite_path),
+                    {"table": table_name},
+                )
+            )
+            continue
+        dataframe = tables[table_name]
+        for field in required_fields if isinstance(required_fields, list) else []:
+            if isinstance(field, str) and field not in dataframe.columns:
+                findings.append(
+                    _mk_finding(
+                        "MDB030",
+                        SEVERITY_BLOCKER,
+                        f"Required MDB field missing: {table_name}.{field}",
+                        str(sqlite_path),
+                        {"table": table_name, "field": field},
+                    )
+                )
+
+    # Referential integrity checks
+    relations = [r for r in mdb_schema.get("relations", []) if isinstance(r, dict)]
+    if relations:
+        layers_gdfs: dict[str, Any] = {}
+        for rel in relations:
+            from_layer = rel.get("from_layer")
+            if not isinstance(from_layer, str) or from_layer in layers_gdfs:
+                continue
+            layer_path = workspace / from_layer
+            if layer_path.exists():
+                try:
+                    layers_gdfs[from_layer] = gpd.read_file(layer_path)
+                except Exception:
+                    pass
+        findings.extend(check_tables_and_relations(sqlite_path, relations, layers_gdfs))
+
+    return findings
+
+
 def _ingest(zip_path: Path, workspace: Path) -> int:
     findings: list[Finding] = []
     workspace.mkdir(parents=True, exist_ok=True)
@@ -740,6 +836,8 @@ def _validate(workspace: Path, outdir: Path, kind: str | None, profile: str | No
         findings.extend(_validate_layers(workspace, layers_schema))
         topology_schema = _load_topology_schema(resolved_kind)
         findings.extend(_validate_topology(workspace, topology_schema))
+        mdb_schema = _load_mdb_schema(resolved_kind)
+        findings.extend(_validate_mdb(workspace, outdir, resolved_profile, mdb_schema))
 
     report = Report(
         command="validate",

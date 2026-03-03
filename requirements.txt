@@ -1,0 +1,6 @@
+pyyaml
+pydantic
+geopandas
+pyogrio
+shapely
+pytest

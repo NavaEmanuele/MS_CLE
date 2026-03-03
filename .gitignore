@@ -63,3 +63,9 @@ Thumbs.db
 *.swp
 .vscode/
 .idea/
+
+# Project local data/output
+data_private/
+output/
+*.sqlite
+*.gpkg

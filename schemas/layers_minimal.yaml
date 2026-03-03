@@ -1,0 +1,20 @@
+layers:
+  - name: MS1_Stab
+    path: MS1/MS1_Stab.shp
+    required_fields: [ID, STATO]
+    not_null_fields: [ID, STATO]
+
+  - name: MS1_Instab
+    path: MS1/MS1_Instab.shp
+    required_fields: [ID, CLASSE]
+    not_null_fields: [ID, CLASSE]
+
+  - name: GeoTec_Base
+    path: GeoTec/GeoTec_Base.shp
+    required_fields: [ID, TIPO]
+    not_null_fields: [ID]
+
+  - name: CLE_Base
+    path: CLE/CLE_Base.shp
+    required_fields: [ID_CLE, TIPO]
+    not_null_fields: [ID_CLE]

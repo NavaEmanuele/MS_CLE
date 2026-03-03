@@ -1,0 +1,5 @@
+required_dirs:
+  - MS1
+  - GeoTec
+  - CLE
+required_files: []

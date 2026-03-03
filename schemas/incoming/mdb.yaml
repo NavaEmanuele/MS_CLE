@@ -1,6 +1,19 @@
 version: 1
-mdb_files_glob:
-  - "**/*.mdb"
-require_mdb_for_profiles: []
-tables: []
-relations: []
+databases:
+  - name: "cle_db"
+    globs:
+      - "CLE/CLE_db_*.mdb"
+    required_for_profiles:
+      - "cle"
+      - "mscle"
+    tables: []
+    relations: []
+
+  - name: "cdi_db"
+    globs:
+      - "Indagini/CdI_Tabelle_*.mdb"
+    required_for_profiles:
+      - "ms"
+      - "mscle"
+    tables: []
+    relations: []

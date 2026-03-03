@@ -29,7 +29,7 @@ def load_mdb_schema(kind: str, profile: str | None = None, schemas_root: Path | 
             payload = yaml.safe_load(candidate.read_text(encoding="utf-8")) or {}
             if isinstance(payload, dict):
                 return payload
-    return {"version": 1, "mdb_files_glob": [], "require_mdb_for_profiles": [], "tables": [], "relations": []}
+    return {"version": 1, "databases": []}
 
 
 def find_mdb_files(workspace: Path, globs: list[str]) -> list[Path]:

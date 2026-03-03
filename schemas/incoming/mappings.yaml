@@ -1,3 +1,7 @@
 mappings:
   - source_glob: MS23/**/*
     dest: MS2
+  - source_glob: CLE/CLE_db_*.mdb
+    dest: CLE
+  - source_glob: Indagini/CdI_Tabelle_*.mdb
+    dest: Indagini

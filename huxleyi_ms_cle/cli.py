@@ -154,7 +154,7 @@ def _load_schema_by_key(kind: str, key: str, fallback_name: str) -> dict[str, An
     if key == "layers_schema":
         return {"version": 1, "layers": []}
     if key == "mdb_schema":
-        return {"version": 1, "mdb_files_glob": [], "require_mdb_for_profiles": [], "tables": [], "relations": []}
+        return {"version": 1, "databases": []}
     if key == "domains_schema":
         return {"version": 1, "domains": []}
     raise FileNotFoundError(f"No schema found for kind '{kind}' and key '{key}'")
@@ -649,51 +649,70 @@ def _validate_topology(workspace: Path, topology_schema: dict[str, Any]) -> list
 
 def _validate_mdb(workspace: Path, outdir: Path, profile: str, mdb_schema: dict[str, Any]) -> list[Finding]:
     findings: list[Finding] = []
-    globs = mdb_schema.get("mdb_files_glob", [])
-    if not isinstance(globs, list) or not globs:
-        return findings
+    db_entries = [d for d in mdb_schema.get("databases", []) if isinstance(d, dict)]
+    # Backward compatibility for legacy single-db schema.
+    if not db_entries and isinstance(mdb_schema.get("mdb_files_glob"), list):
+        db_entries = [
+            {
+                "name": "default",
+                "globs": mdb_schema.get("mdb_files_glob", []),
+                "required_for_profiles": mdb_schema.get("require_mdb_for_profiles", []),
+                "tables": mdb_schema.get("tables", []),
+                "relations": mdb_schema.get("relations", []),
+            }
+        ]
 
-    require_profiles = {
-        str(p).lower()
-        for p in mdb_schema.get("require_mdb_for_profiles", [])
-        if isinstance(p, str)
-    }
-    is_required = profile.lower() in require_profiles
-    mdb_files = find_mdb_files(workspace, [str(g) for g in globs if isinstance(g, str)])
-    if not mdb_files:
-        sev = SEVERITY_BLOCKER if is_required else SEVERITY_WARN
-        findings.append(
-            _mk_finding(
-                "MDB020",
-                sev,
-                "MDB file not found for configured glob patterns.",
-                str(workspace),
-                {"mdb_files_glob": globs},
+    for db_cfg in db_entries:
+        db_name = db_cfg.get("name")
+        if not isinstance(db_name, str) or not db_name.strip():
+            continue
+        globs = [str(g) for g in db_cfg.get("globs", []) if isinstance(g, str)]
+        if not globs:
+            continue
+        require_profiles = {
+            str(p).lower()
+            for p in db_cfg.get("required_for_profiles", [])
+            if isinstance(p, str)
+        }
+        is_required = profile.lower() in require_profiles
+
+        mdb_files = find_mdb_files(workspace, globs)
+        if not mdb_files:
+            if is_required:
+                findings.append(
+                    _mk_finding(
+                        "MDB020",
+                        SEVERITY_BLOCKER,
+                        f"Required MDB database not found: {db_name}",
+                        str(workspace),
+                        {"database": db_name, "globs": globs},
+                    )
+                )
+            continue
+
+        mdb_path = mdb_files[0]
+        try:
+            tables = try_read_mdb_pyodbc(mdb_path)
+        except Exception as exc:
+            findings.append(
+                _mk_finding(
+                    "MDB010",
+                    SEVERITY_WARN,
+                    f"MDB '{db_name}' not readable via pyodbc. Install Microsoft Access Database Engine/ODBC driver.",
+                    str(mdb_path),
+                    {"database": db_name, "error": str(exc)},
+                )
             )
-        )
-        return findings
+            # As requested, skip relation checks when DB is not readable.
+            continue
 
-    mdb_path = mdb_files[0]
-    try:
-        tables = try_read_mdb_pyodbc(mdb_path)
-    except Exception as exc:
-        findings.append(
-            _mk_finding(
-                "MDB010",
-                SEVERITY_WARN,
-                "MDB not readable via pyodbc. Install Microsoft Access Database Engine/ODBC driver.",
-                str(mdb_path),
-                {"error": str(exc)},
-            )
-        )
-        return findings
-
-    sqlite_path = outdir / "normalized.sqlite"
-    write_sqlite(tables, sqlite_path)
-    tables_cfg = [t for t in mdb_schema.get("tables", []) if isinstance(t, dict)]
-    relations_cfg = [r for r in mdb_schema.get("relations", []) if isinstance(r, dict)]
-    findings.extend(check_tables_required(sqlite_path, tables_cfg))
-    findings.extend(check_relations(sqlite_path, relations_cfg, workspace, tables_cfg))
+        sqlite_path = outdir / f"normalized_{db_name}.sqlite"
+        write_sqlite(tables, sqlite_path)
+        tables_cfg = [t for t in db_cfg.get("tables", []) if isinstance(t, dict)]
+        relations_cfg = [r for r in db_cfg.get("relations", []) if isinstance(r, dict)]
+        findings.extend(check_tables_required(sqlite_path, tables_cfg))
+        if db_name == "cle_db":
+            findings.extend(check_relations(sqlite_path, relations_cfg, workspace, tables_cfg))
 
     return findings
 

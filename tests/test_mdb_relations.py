@@ -101,10 +101,22 @@ def test_validate_mdb_required_missing_returns_blocker(monkeypatch) -> None:
             tmp_path,
             {
                 "version": 1,
-                "mdb_files_glob": ["**/*.mdb"],
-                "require_mdb_for_profiles": ["cle", "mscle"],
-                "tables": [],
-                "relations": [],
+                "databases": [
+                    {
+                        "name": "cle_db",
+                        "globs": ["CLE/CLE_db_*.mdb"],
+                        "required_for_profiles": ["cle", "mscle"],
+                        "tables": [],
+                        "relations": [],
+                    },
+                    {
+                        "name": "cdi_db",
+                        "globs": ["Indagini/CdI_Tabelle_*.mdb"],
+                        "required_for_profiles": ["ms", "mscle"],
+                        "tables": [],
+                        "relations": [],
+                    },
+                ],
             },
         )
         monkeypatch.setenv("HUXLEYI_SCHEMAS_ROOT", str(schema_root))
@@ -128,16 +140,23 @@ def test_validate_mdb_pyodbc_failure_reports_mdb010_warn(monkeypatch) -> None:
             tmp_path,
             {
                 "version": 1,
-                "mdb_files_glob": ["**/*.mdb"],
-                "require_mdb_for_profiles": ["cle", "mscle"],
-                "tables": [],
-                "relations": [],
+                "databases": [
+                    {
+                        "name": "cle_db",
+                        "globs": ["CLE/CLE_db_*.mdb"],
+                        "required_for_profiles": ["cle", "mscle"],
+                        "tables": [],
+                        "relations": [],
+                    }
+                ],
             },
         )
         monkeypatch.setenv("HUXLEYI_SCHEMAS_ROOT", str(schema_root))
         workspace = tmp_path / "workspace"
         workspace.mkdir(parents=True, exist_ok=True)
-        (workspace / "db.mdb").write_text("fake", encoding="utf-8")
+        cle_dir = workspace / "CLE"
+        cle_dir.mkdir(parents=True, exist_ok=True)
+        (cle_dir / "CLE_db_test.mdb").write_text("fake", encoding="utf-8")
         outdir = tmp_path / "out"
 
         def _raise(_path):
@@ -149,5 +168,47 @@ def test_validate_mdb_pyodbc_failure_reports_mdb010_warn(monkeypatch) -> None:
 
         assert exit_code == 0
         assert any(f["check_id"] == "MDB010" and f["severity"] == "WARN" for f in payload["findings"])
+    finally:
+        shutil.rmtree(tmp_path, ignore_errors=True)
+
+
+def test_validate_cdi_db_required_missing_returns_blocker(monkeypatch) -> None:
+    tmp_path = _new_tmp_dir("tmp_test_mdb_cdi_required_missing")
+    try:
+        schema_root = _setup_schema_root(
+            tmp_path,
+            {
+                "version": 1,
+                "databases": [
+                    {
+                        "name": "cle_db",
+                        "globs": ["CLE/CLE_db_*.mdb"],
+                        "required_for_profiles": ["cle", "mscle"],
+                        "tables": [],
+                        "relations": [],
+                    },
+                    {
+                        "name": "cdi_db",
+                        "globs": ["Indagini/CdI_Tabelle_*.mdb"],
+                        "required_for_profiles": ["ms", "mscle"],
+                        "tables": [],
+                        "relations": [],
+                    },
+                ],
+            },
+        )
+        monkeypatch.setenv("HUXLEYI_SCHEMAS_ROOT", str(schema_root))
+        workspace = tmp_path / "workspace"
+        workspace.mkdir(parents=True, exist_ok=True)
+        outdir = tmp_path / "out"
+
+        exit_code = cli_mod.main(["validate", str(workspace), "--out", str(outdir), "--kind", "delivery", "--profile", "ms"])
+        payload = json.loads((outdir / "report.json").read_text(encoding="utf-8"))
+
+        assert exit_code == 2
+        assert any(
+            f["check_id"] == "MDB020" and f["severity"] == "BLOCKER" and f["details"].get("database") == "cdi_db"
+            for f in payload["findings"]
+        )
     finally:
         shutil.rmtree(tmp_path, ignore_errors=True)

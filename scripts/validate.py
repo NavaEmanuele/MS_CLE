@@ -408,16 +408,21 @@ def validate_cle(workspace, issues, run_geom=True, out_workspace=None):
 # Main
 # -----------------------------
 def main():
-    if arcpy is None:
-        print("ERRORE: arcpy non disponibile. Esegui con il Python di ArcGIS Desktop.")
-        return 2
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--workspace", required=True, help="Cartella consegna comune (contiene CLE/MS1/GeoTec)")
     parser.add_argument("--out", default=None, help="Cartella output report (default: <workspace>/_validation)")
     parser.add_argument("--no-geometry", action="store_true", help="Disabilita CheckGeometry")
     parser.add_argument("--no-overlap", action="store_true", help="Disabilita controllo overlap Stab/Instab")
+    parser.add_argument(
+        "--components",
+        default="cle,ms1,geotec",
+        help="Componenti da validare (csv tra: cle, ms1, geotec). Default: tutte"
+    )
     args = parser.parse_args()
+
+    if arcpy is None:
+        print("ERRORE: arcpy non disponibile. Esegui con il Python di ArcGIS Desktop.")
+        return 2
 
     workspace = os.path.abspath(args.workspace)
     out_dir = args.out or os.path.join(workspace, "_validation")
@@ -435,8 +440,24 @@ def main():
     issues = []
     tag = _now_tag()
 
+    selected = set([c.strip().lower() for c in args.components.split(",") if c.strip()])
+    valid_components = set(["cle", "ms1", "geotec"])
+    invalid_components = sorted(selected - valid_components)
+    if invalid_components:
+        print("ERRORE: componenti non valide: {0}".format(", ".join(invalid_components)))
+        print("Usa solo: cle, ms1, geotec")
+        return 2
+    if not selected:
+        selected = valid_components
+
     # struttura base
-    for d in ("CLE", "MS1", "GeoTec"):
+    dir_by_component = {
+        "cle": "CLE",
+        "ms1": "MS1",
+        "geotec": "GeoTec",
+    }
+    for comp in sorted(selected):
+        d = dir_by_component.get(comp)
         p = os.path.join(workspace, d)
         if not os.path.isdir(p):
             _add_issue(issues, "ERROR", "STRUCTURE", d, "", "", "MISSING_DIR", "Cartella mancante", p)
@@ -444,9 +465,12 @@ def main():
     run_geom = (not args.no_geometry)
     run_overlap = (not args.no_overlap)
 
-    validate_cle(workspace, issues, run_geom=run_geom, out_workspace=tmp_dir)
-    validate_ms1(workspace, issues, run_geom=run_geom, run_overlap=run_overlap, out_workspace=tmp_dir)
-    validate_geotec(workspace, issues, run_geom=run_geom, out_workspace=tmp_dir)
+    if "cle" in selected:
+        validate_cle(workspace, issues, run_geom=run_geom, out_workspace=tmp_dir)
+    if "ms1" in selected:
+        validate_ms1(workspace, issues, run_geom=run_geom, run_overlap=run_overlap, out_workspace=tmp_dir)
+    if "geotec" in selected:
+        validate_geotec(workspace, issues, run_geom=run_geom, out_workspace=tmp_dir)
 
     # report
     out_csv = os.path.join(reports_dir, "validation_{0}.csv".format(tag))

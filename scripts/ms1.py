@@ -46,7 +46,6 @@ descr_dict_stab = {
 
 # Dizionario per popolare il campo DESCR per Instab.shp
 descr_dict_instab = {
-    "3021"
     "300120": "Zona di Suscettibilità per le instabilità di versante",
     "300220": "Zona di Rispetto per le instabilità di versante",
     "305220": "Zona di Suscettibilità per la liquefazione",

@@ -166,14 +166,12 @@ def generate_new_filename(filename, existing_filenames):
     print("Generato nuovo nome file: '{}' da '{}'".format(new_name, filename))
     return new_name
 
-# Funzione principale
-if __name__ == '__main__':
-    # 1. Esporta le tabelle dal database MDB
+# Fase di preprocess (export tabelle + rinomina PDF)
+def run_preprocessing():
     print("--- Inizio esportazione delle tabelle dal database MDB ---")
     export_tables_from_mdb()
     print("--- Esportazione completata ---")
 
-    # 2. Rinomina i file PDF nella directory "Documenti"
     print("--- Inizio rinomina dei file PDF nella directory Documenti ---")
     if os.path.isdir(DOCUMENTS_FOLDER):
         rename_pdfs_in_directory(DOCUMENTS_FOLDER)
@@ -181,8 +179,7 @@ if __name__ == '__main__':
         print(u"La directory specificata per i documenti non esiste: {}".format(DOCUMENTS_FOLDER))
     print("--- Rinomina dei file PDF completata ---")
 
-    # 3. Esegui lo studio delle indagini
-    # Funzione per normalizzare i codici
+# Funzione per normalizzare i codici
 def normalize_code(code):
     if code is None:
         return ''
@@ -359,6 +356,7 @@ def process_indagini():
 # Funzione principale
 def main():
     print("--- Inizio elaborazione per il comune di {} ---".format(COMUNE_NOME))
+    run_preprocessing()
     process_indagini()
     print("--- Elaborazione completata per il comune di {} ---".format(COMUNE_NOME))
 

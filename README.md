@@ -111,5 +111,27 @@ Dove configurare:
 - Usa percorsi raw `r"D:\..."` o raddoppia i backslash
 
 
+
+## Prova operativa con assistente
+
+Per fare una prova rapida del flusso di lavoro:
+1) chiedi una modifica mirata (es. aggiornare una descrizione o aggiungere una nota)
+2) verifica il diff proposto
+3) esegui test/controlli minimi
+4) crea commit sul branch corrente
+5) apri una pull request con riepilogo delle modifiche
+
+## Come trovare e correggere falle/errori (workflow consigliato)
+
+Per individuare problemi in modo ripetibile:
+1) **Check statico script**: esegui compilazione rapida (`python -m compileall scripts huxleyi_ms_cle`) per intercettare errori strutturali.
+2) **Validazione dataset**: usa `scripts/validate.py` sui soli componenti utili (`--components cle|ms1|geotec`) per isolare i problemi.
+3) **Confronto con documentazione esterna**: verifica codici, naming campi, URL e tabelle MDB rispetto agli standard ufficiali del progetto/comune.
+4) **Fix mirati + test minimo**: applica correzioni piccole, riesegui i check, poi commit con messaggio descrittivo.
+
+Suggerimento pratico: quando condividi documentazione esterna nel progetto, mantieni una checklist (campi obbligatori, codifiche, convenzioni URL) per ridurre errori ricorrenti.
+
+---
+
 ## Autore
 Emanuele Nava

@@ -1,0 +1,7 @@
+version: 1
+domains:
+  # Populate with authoritative incoming domains as they are confirmed.
+  - name: "Tipo_el"
+    allowed: []
+  - name: "Tipo_*"
+    regex: ".*"

@@ -1,0 +1,92 @@
+version: 1
+layers:
+- name: reg2010_s
+  path: BasiDati/Comuni/reg2010_s.shp
+  required_fields: []
+  not_null_fields: []
+  unique_fields: []
+  geometry: polygon
+  crs_epsg: 23032
+- name: urbanizzato_polygon
+  path: BasiDati/urbanizzato_polygon.shp
+  required_fields: []
+  not_null_fields: []
+  unique_fields: []
+  geometry: polygon
+  crs_epsg: 32633
+- name: Elineari
+  path: GeoTec/Elineari.shp
+  required_fields: []
+  not_null_fields:
+  - ID_el
+  unique_fields:
+  - ID_el
+  fields:
+  - name: Tipo_el
+    domain: Tipo_el
+  geometry: line
+  crs_epsg: 32633
+- name: Epuntuali
+  path: GeoTec/Epuntuali.shp
+  required_fields: []
+  not_null_fields:
+  - ID_ep
+  unique_fields:
+  - ID_ep
+  crs_epsg: 32633
+- name: Geoidr
+  path: GeoTec/Geoidr.shp
+  required_fields: []
+  not_null_fields:
+  - ID_gi
+  unique_fields:
+  - ID_gi
+  geometry: point
+  crs_epsg: 32633
+- name: Geotec
+  path: GeoTec/Geotec.shp
+  required_fields: []
+  not_null_fields:
+  - ID_gt
+  unique_fields:
+  - ID_gt
+  geometry: polygon
+  crs_epsg: 32633
+- name: Ind_ln
+  path: Indagini/Ind_ln.shp
+  required_fields:
+  - ID_SLN
+  not_null_fields:
+  - ID_SLN
+  unique_fields:
+  - ID_SLN
+  geometry: line
+  crs_epsg: 32633
+- name: Ind_pu
+  path: Indagini/Ind_pu.shp
+  required_fields:
+  - ID_SPU
+  not_null_fields:
+  - ID_SPU
+  unique_fields:
+  - ID_SPU
+  geometry: point
+  crs_epsg: 32633
+- name: Instab
+  path: MS1/Instab.shp
+  required_fields: []
+  not_null_fields:
+  - ID_i
+  unique_fields:
+  - ID_i
+  geometry: polygon
+  crs_epsg: 32633
+- name: Stab
+  path: MS1/Stab.shp
+  required_fields: []
+  not_null_fields:
+  - ID_z
+  unique_fields:
+  - ID_z
+  geometry: polygon
+  crs_epsg: 32633

@@ -1,0 +1,74 @@
+version: 1
+actions:
+  - layer: "Indagini/Ind_pu.shp"
+    add_fields:
+      - name: "URL"
+        type: "str"
+        length: 254
+      - name: "DESCR"
+        type: "str"
+        length: 254
+    set_values:
+      - field: "URL"
+        expr: "url_template"
+        template: "https://www.cartografia.servizirl.it/download/sismica/{ID_SPU}.pdf"
+      - field: "DESCR"
+        expr: "descr_from_dict"
+        source_field: "cod"
+    dict: "schemas/dicts/indagini.yaml"
+  - layer: "Indagini/Ind_ln.shp"
+    add_fields:
+      - name: "URL"
+        type: "str"
+        length: 254
+      - name: "DESCR"
+        type: "str"
+        length: 254
+    set_values:
+      - field: "URL"
+        expr: "url_template"
+        template: "https://www.cartografia.servizirl.it/download/sismica/{ID_SLN}.pdf"
+      - field: "DESCR"
+        expr: "descr_from_dict"
+        source_field: "cod"
+    dict: "schemas/dicts/indagini.yaml"
+  - layer: "GeoTec/Geotec.shp"
+    add_fields:
+      - name: "DESCR"
+        type: "str"
+        length: 254
+    set_values:
+      - field: "DESCR"
+        expr: "descr_from_dict"
+        source_field: "Tipo_gt"
+    dict: "schemas/dicts/geotec.yaml"
+  - layer: "GeoTec/Geoidr.shp"
+    add_fields:
+      - name: "DESCR"
+        type: "str"
+        length: 254
+    set_values:
+      - field: "DESCR"
+        expr: "descr_from_dict"
+        source_field: "Tipo_gi"
+    dict: "schemas/dicts/geotec.yaml"
+  - layer: "GeoTec/Elineari.shp"
+    add_fields:
+      - name: "DESCR"
+        type: "str"
+        length: 254
+    set_values:
+      - field: "DESCR"
+        expr: "descr_from_dict"
+        source_field: "Tipo_el"
+    dict: "schemas/dicts/geotec.yaml"
+  - layer: "GeoTec/Epuntuali.shp"
+    add_fields:
+      - name: "DESCR"
+        type: "str"
+        length: 254
+    set_values:
+      - field: "DESCR"
+        expr: "descr_from_dict"
+        source_field: "Tipo_ep"
+    dict: "schemas/dicts/geotec.yaml"

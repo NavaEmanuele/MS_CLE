@@ -1,0 +1,200 @@
+version: 1
+layers:
+- name: Com2014_WGS84_33N
+  path: BasiDati/Comuni/Com2014_WGS84_33N.shp
+  required_fields: []
+  not_null_fields: []
+  unique_fields: []
+  geometry: polygon
+  crs_epsg: 32633
+- name: Comuni_2020_poligonali
+  path: BasiDati/Confine comunale/Comuni_2020_poligonali.shp
+  required_fields: []
+  not_null_fields: []
+  unique_fields: []
+  geometry: polygon
+  crs_epsg: 32633
+- name: Isoispe
+  path: BasiDati/DBT/Isoipse/Isoispe.shp
+  required_fields: []
+  not_null_fields: []
+  unique_fields: []
+  geometry: line
+  crs_epsg: 32633
+- name: CL_AC
+  path: CLE/CL_AC.shp
+  required_fields: []
+  not_null_fields:
+  - ID_infra
+  - ID_AC
+  unique_fields:
+  - ID_infra
+  - ID_AC
+  geometry: line
+  crs_epsg: 32633
+- name: CL_AE
+  path: CLE/CL_AE.shp
+  required_fields: []
+  not_null_fields:
+  - ID_area
+  - ID_AE
+  unique_fields:
+  - ID_area
+  - ID_AE
+  geometry: polygon
+  crs_epsg: 32633
+- name: CL_AS
+  path: CLE/CL_AS.shp
+  required_fields: []
+  not_null_fields:
+  - ID_aggr
+  - ID_AS
+  unique_fields:
+  - ID_aggr
+  - ID_AS
+  geometry: polygon
+  crs_epsg: 32633
+- name: CL_ES
+  path: CLE/CL_ES.shp
+  required_fields: []
+  not_null_fields:
+  - ID_aggr
+  - ID_unit
+  - ID_ES
+  unique_fields:
+  - ID_aggr
+  - ID_unit
+  - ID_ES
+  geometry: polygon
+  crs_epsg: 32633
+- name: CL_US
+  path: CLE/CL_US.shp
+  required_fields: []
+  not_null_fields:
+  - ID_aggr
+  - ID_unit
+  - ID_US
+  unique_fields:
+  - ID_aggr
+  - ID_unit
+  - ID_US
+  geometry: polygon
+  crs_epsg: 32633
+- name: Elineari
+  path: GeoTec/Elineari.shp
+  required_fields: []
+  not_null_fields:
+  - ID_el
+  unique_fields:
+  - ID_el
+  fields:
+  - name: Tipo_el
+    domain: Tipo_el
+  geometry: line
+  crs_epsg: 32633
+- name: Epuntuali
+  path: GeoTec/Epuntuali.shp
+  required_fields: []
+  not_null_fields:
+  - ID_ep
+  unique_fields:
+  - ID_ep
+  crs_epsg: 32633
+- name: Forme
+  path: GeoTec/Forme.shp
+  required_fields: []
+  not_null_fields:
+  - ID_f
+  unique_fields:
+  - ID_f
+  crs_epsg: 32633
+- name: Geoidr
+  path: GeoTec/Geoidr.shp
+  required_fields: []
+  not_null_fields:
+  - ID_gi
+  unique_fields:
+  - ID_gi
+  geometry: point
+  crs_epsg: 32633
+- name: Geotec
+  path: GeoTec/Geotec.shp
+  required_fields: []
+  not_null_fields:
+  - ID_gt
+  unique_fields:
+  - ID_gt
+  geometry: polygon
+  crs_epsg: 32633
+- name: Ind_ln
+  path: Indagini/Ind_ln.shp
+  required_fields:
+  - ID_SLN
+  not_null_fields:
+  - ID_SLN
+  unique_fields:
+  - ID_SLN
+  geometry: line
+  crs_epsg: 32633
+- name: Ind_pu
+  path: Indagini/Ind_pu.shp
+  required_fields:
+  - ID_SPU
+  not_null_fields:
+  - ID_SPU
+  unique_fields:
+  - ID_SPU
+  geometry: point
+  crs_epsg: 32633
+- name: Instab
+  path: MS1/Instab.shp
+  required_fields: []
+  not_null_fields:
+  - ID_i
+  unique_fields:
+  - ID_i
+  geometry: polygon
+  crs_epsg: 32633
+- name: Isosub
+  path: MS1/Isosub.shp
+  required_fields: []
+  not_null_fields:
+  - ID_isosub
+  unique_fields:
+  - ID_isosub
+  crs_epsg: 32633
+- name: Stab
+  path: MS1/Stab.shp
+  required_fields: []
+  not_null_fields:
+  - ID_z
+  unique_fields:
+  - ID_z
+  geometry: polygon
+  crs_epsg: 32633
+- name: Instab
+  path: MS23/Instab.shp
+  required_fields: []
+  not_null_fields:
+  - ID_i
+  unique_fields:
+  - ID_i
+  geometry: polygon
+  crs_epsg: 32633
+- name: Isosub
+  path: MS23/Isosub.shp
+  required_fields: []
+  not_null_fields:
+  - ID_isosub
+  unique_fields:
+  - ID_isosub
+  crs_epsg: 32633
+- name: Stab
+  path: MS23/Stab.shp
+  required_fields: []
+  not_null_fields:
+  - ID_z
+  unique_fields:
+  - ID_z
+  geometry: polygon
+  crs_epsg: 32633

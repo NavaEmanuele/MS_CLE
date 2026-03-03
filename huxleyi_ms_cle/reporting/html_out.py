@@ -13,7 +13,7 @@ def write_report_html(report: Report, path: Path) -> None:
         rows.append(
             "<tr>"
             f"<td>{escape(finding.severity)}</td>"
-            f"<td>{escape(finding.code)}</td>"
+            f"<td>{escape(finding.check_id or finding.code)}</td>"
             f"<td>{escape(finding.message)}</td>"
             f"<td>{escape(finding.location or '')}</td>"
             "</tr>"

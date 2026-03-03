@@ -69,3 +69,13 @@ data_private/
 output/
 *.sqlite
 *.gpkg
+.pytest_cache/
+.tmp_pytest/
+pytest-cache-files-*/
+tmp*/
+
+.venv/
+venv/
+__pycache__/
+*.pyc
+

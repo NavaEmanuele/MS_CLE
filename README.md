@@ -82,7 +82,7 @@ Cosa fa (in sintesi):
   - `Stab` usando `Tipo_z` (considera i primi 4 caratteri)
   - `Instab` usando `Tipo_i` (considera i primi 6 caratteri)
 - Popola `URL` costruendo un link del tipo:
-  - `https://www.cartografia.servizirl.it/download/sismica/<COD_ISTAT>_<COD_TIPO>.jpg`
+  - `.../<COD_ISTAT>_<COD_TIPO>.jpg`
 - Elimina una lista di campi “non necessari” (`FA`, `FV`, `FPGA`, …)
 
 Dove configurare:

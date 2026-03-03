@@ -1,21 +1,38 @@
 version: 1
 mdb_files_glob:
   - "**/*.mdb"
+require_mdb_for_profiles:
+  - cle
+  - mscle
 tables:
-  # Populate with authoritative CLE_db.mdb table names when confirmed.
-  # Example:
-  # - name: "scheda_AC"
-  #   required_fields: ["ID_AC"]
-  # - name: "scheda_AE"
-  #   required_fields: ["ID_AE"]
-  # - name: "scheda_US"
-  #   required_fields: ["ID_US"]
+  # Update names/fields once CLE_db.mdb structure is confirmed.
   - name: "scheda_AC"
     required_fields: ["ID_AC"]
+  - name: "scheda_AE"
+    required_fields: ["ID_AE"]
 relations:
-  # Configure real relations once table naming/keys are validated in CLE_db.mdb.
   - from_layer: "CLE/CL_AC.shp"
     from_field: "ID_AC"
     to_table: "scheda_AC"
     to_field: "ID_AC"
+    severity_on_missing: "WARN"
+  - from_layer: "CLE/CL_AE.shp"
+    from_field: "ID_AE"
+    to_table: "scheda_AE"
+    to_field: "ID_AE"
+    severity_on_missing: "WARN"
+  - from_layer: "CLE/CL_AS.shp"
+    from_field: "ID_AS"
+    to_table: "scheda_AS"
+    to_field: "ID_AS"
+    severity_on_missing: "WARN"
+  - from_layer: "CLE/CL_ES.shp"
+    from_field: "ID_ES"
+    to_table: "scheda_ES"
+    to_field: "ID_ES"
+    severity_on_missing: "WARN"
+  - from_layer: "CLE/CL_US.shp"
+    from_field: "ID_US"
+    to_table: "scheda_US"
+    to_field: "ID_US"
     severity_on_missing: "WARN"

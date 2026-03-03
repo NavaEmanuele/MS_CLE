@@ -1,5 +1,6 @@
 version: 1
 mdb_files_glob:
   - "**/*.mdb"
+require_mdb_for_profiles: []
 tables: []
 relations: []

@@ -92,7 +92,7 @@ def test_validate_reports_mdb010_when_mdb_unreadable(monkeypatch) -> None:
         def _raise(_mdb_path):
             raise RuntimeError("driver missing")
 
-        monkeypatch.setattr(cli_mod, "try_read_mdb_tables_pyodbc", _raise)
+        monkeypatch.setattr(cli_mod, "try_read_mdb_pyodbc", _raise)
 
         exit_code = cli_mod.main(["validate", str(workspace), "--out", str(outdir), "--kind", "delivery", "--profile", "ms"])
         payload = json.loads((outdir / "report.json").read_text(encoding="utf-8"))

@@ -63,3 +63,8 @@ Thumbs.db
 *.swp
 .vscode/
 .idea/
+
+# Project outputs
+data_private/
+output/
+*_output*/

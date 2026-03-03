@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "huxleyi-ms-cle"
+version = "0.1.0"
+description = "Core Python CLI for MS/CLE ingest, validation and build workflows"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "pyyaml>=6.0",
+  "pydantic>=2.0",
+  "geopandas>=0.14",
+  "pyogrio>=0.9",
+  "shapely>=2.0",
+  "pytest>=8.0",
+  "pyodbc>=5.0; platform_system == 'Windows'",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

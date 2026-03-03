@@ -1,5 +1,23 @@
 # MS_CLE
 
+> ⚠️ Legacy ArcPy scripts in `scripts/` are kept as reference.
+> The new executable core is pure Python 3 and does **not** require ArcPy, ArcMap or QGIS.
+
+## Nuova CLI core (Python 3)
+
+Comandi supportati:
+
+- `python -m huxleyi_ms_cle ingest --zip <zip> --workspace <dir>`
+- `python -m huxleyi_ms_cle validate <workspace> --out <outdir>`
+- `python -m huxleyi_ms_cle build <workspace> --out <outdir>`
+
+Ogni comando genera un report unificato (`report.json` + `report.html`) nella directory di output.
+- Severità findings: `BLOCKER`, `WARN`, `INFO`
+- Exit code:
+  - `0` = nessun `BLOCKER`
+  - `2` = almeno un `BLOCKER`
+  - `1` = errore runtime
+
 Raccolta di script **Python + arcpy** per **ArcMap 10.4** (Python 2.7) utili a velocizzare attività ricorrenti nei workflow di:
 - **CLE (Condizione Limite per l’Emergenza)**: gestione campi/URL e collegamento a schede e stampe
 - **MS (Microzonazione Sismica)**: popolamento descrizioni, URL e pulizia campi (es. MS1)

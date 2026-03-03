@@ -1,0 +1,14 @@
+version: 1
+domains:
+  # Populate with authoritative delivery domains as they are confirmed.
+  # Example:
+  # - name: "Tipo_el"
+  #   allowed: ["A", "B", "C"]
+  #   severity: "WARN"
+  # - name: "Tipo_*"
+  #   regex: "^[A-Z0-9_]+$"
+  #   severity: "WARN"
+  - name: "Tipo_el"
+    allowed: []
+  - name: "Tipo_*"
+    regex: ".*"

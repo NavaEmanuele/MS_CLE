@@ -130,8 +130,8 @@ def _load_catalog() -> dict[str, Any]:
         return _load_yaml(catalog_path)
     return {
         "kinds": {
-            "delivery": {"fs_schema": "fs_structure.yaml", "layers_schema": "layers.yaml"},
-            "incoming": {"fs_schema": "fs_structure.yaml", "layers_schema": "layers.yaml"},
+            "delivery": {"fs_schema": "fs_structure.yaml", "layers_schema": "layers.yaml", "domains_schema": "domains.yaml"},
+            "incoming": {"fs_schema": "fs_structure.yaml", "layers_schema": "layers.yaml", "domains_schema": "domains.yaml"},
         }
     }
 
@@ -155,6 +155,8 @@ def _load_schema_by_key(kind: str, key: str, fallback_name: str) -> dict[str, An
         return {"version": 1, "layers": []}
     if key == "mdb_schema":
         return {"version": 1, "mdb_files_glob": [], "tables": [], "relations": []}
+    if key == "domains_schema":
+        return {"version": 1, "domains": []}
     raise FileNotFoundError(f"No schema found for kind '{kind}' and key '{key}'")
 
 
@@ -172,6 +174,10 @@ def _load_topology_schema(kind: str) -> dict[str, Any]:
 
 def _load_mdb_schema(kind: str) -> dict[str, Any]:
     return _load_schema_by_key(kind, "mdb_schema", "mdb.yaml")
+
+
+def _load_domains_schema(kind: str) -> dict[str, Any]:
+    return _load_schema_by_key(kind, "domains_schema", "domains.yaml")
 
 
 def _load_mappings_schema() -> dict[str, Any]:
@@ -356,8 +362,55 @@ def _scan_workspace(workspace: Path, out_json: Path) -> int:
     return 0
 
 
-def _validate_layers(workspace: Path, layers_schema: dict[str, Any]) -> list[Finding]:
+def _normalize_severity(value: Any, default: str = SEVERITY_WARN) -> str:
+    if not isinstance(value, str):
+        return default
+    normalized = value.strip().upper()
+    if normalized in {SEVERITY_BLOCKER, SEVERITY_WARN, SEVERITY_INFO}:
+        return normalized
+    return default
+
+
+def _compile_domains(domains_schema: dict[str, Any]) -> list[dict[str, Any]]:
+    compiled: list[dict[str, Any]] = []
+    for item in domains_schema.get("domains", []):
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name")
+        if not isinstance(name, str) or not name.strip():
+            continue
+        allowed_raw = item.get("allowed", [])
+        allowed = {str(v) for v in allowed_raw} if isinstance(allowed_raw, list) else None
+        regex_raw = item.get("regex")
+        regex_compiled = None
+        if isinstance(regex_raw, str) and regex_raw.strip():
+            try:
+                regex_compiled = re.compile(regex_raw)
+            except re.error:
+                regex_compiled = None
+        compiled.append(
+            {
+                "name": name,
+                "allowed": allowed,
+                "regex": regex_compiled,
+                "regex_raw": regex_raw,
+                "severity": _normalize_severity(item.get("severity"), SEVERITY_WARN),
+            }
+        )
+    return compiled
+
+
+def _match_domain_rule(domain_name: str, compiled_domains: list[dict[str, Any]]) -> dict[str, Any] | None:
+    for item in compiled_domains:
+        name = item.get("name")
+        if isinstance(name, str) and fnmatch(domain_name, name):
+            return item
+    return None
+
+
+def _validate_layers(workspace: Path, layers_schema: dict[str, Any], domains_schema: dict[str, Any] | None = None) -> list[Finding]:
     findings: list[Finding] = []
+    compiled_domains = _compile_domains(domains_schema or {"domains": []})
     for layer in layers_schema.get("layers", []):
         if not isinstance(layer, dict):
             continue
@@ -392,6 +445,7 @@ def _validate_layers(workspace: Path, layers_schema: dict[str, Any]) -> list[Fin
         required_fields = [f for f in layer.get("required_fields", []) if isinstance(f, str)]
         not_null_fields = [f for f in layer.get("not_null_fields", []) if isinstance(f, str)]
         unique_fields = [f for f in layer.get("unique_fields", []) if isinstance(f, str)]
+        field_defs = [f for f in layer.get("fields", []) if isinstance(f, dict)]
 
         for field in required_fields:
             if field not in gdf.columns:
@@ -430,6 +484,61 @@ def _validate_layers(workspace: Path, layers_schema: dict[str, Any]) -> list[Fin
                             f"Duplicate values in field {field}: {duplicates}",
                             str(shp_path),
                             {"layer": relpath, "field": field, "duplicate_count": duplicates},
+                        )
+                    )
+
+        for field_cfg in field_defs:
+            field_name = field_cfg.get("name")
+            domain_name = field_cfg.get("domain")
+            if not isinstance(field_name, str) or not isinstance(domain_name, str):
+                continue
+            if field_name not in gdf.columns:
+                continue
+            rule = _match_domain_rule(domain_name, compiled_domains)
+            if rule is None:
+                continue
+
+            severity = _normalize_severity(field_cfg.get("severity"), rule.get("severity", SEVERITY_WARN))
+            non_null_values = gdf[field_name].dropna().tolist()
+
+            allowed = rule.get("allowed")
+            if isinstance(allowed, set) and allowed:
+                invalid_allowed = [str(v) for v in non_null_values if str(v) not in allowed]
+                if invalid_allowed:
+                    findings.append(
+                        _mk_finding(
+                            "DOM010",
+                            severity,
+                            f"Values outside allowed domain for {field_name}: {len(invalid_allowed)}",
+                            str(shp_path),
+                            {
+                                "layer": relpath,
+                                "field": field_name,
+                                "domain": domain_name,
+                                "invalid_count": len(invalid_allowed),
+                                "invalid_values_sample": invalid_allowed[:20],
+                            },
+                        )
+                    )
+
+            regex_obj = rule.get("regex")
+            if regex_obj is not None:
+                invalid_regex = [str(v) for v in non_null_values if regex_obj.fullmatch(str(v)) is None]
+                if invalid_regex:
+                    findings.append(
+                        _mk_finding(
+                            "DOM020",
+                            severity,
+                            f"Values not matching regex domain for {field_name}: {len(invalid_regex)}",
+                            str(shp_path),
+                            {
+                                "layer": relpath,
+                                "field": field_name,
+                                "domain": domain_name,
+                                "regex": rule.get("regex_raw"),
+                                "invalid_count": len(invalid_regex),
+                                "invalid_values_sample": invalid_regex[:20],
+                            },
                         )
                     )
 
@@ -833,7 +942,8 @@ def _validate(workspace: Path, outdir: Path, kind: str | None, profile: str | No
         metadata["profile"] = resolved_profile
         findings.extend(_validate_fs(workspace, fs_schema, resolved_profile))
         layers_schema = _load_layers_schema(resolved_kind)
-        findings.extend(_validate_layers(workspace, layers_schema))
+        domains_schema = _load_domains_schema(resolved_kind)
+        findings.extend(_validate_layers(workspace, layers_schema, domains_schema))
         topology_schema = _load_topology_schema(resolved_kind)
         findings.extend(_validate_topology(workspace, topology_schema))
         mdb_schema = _load_mdb_schema(resolved_kind)

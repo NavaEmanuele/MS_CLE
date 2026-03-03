@@ -87,6 +87,9 @@ layers:
   - ID_el
   unique_fields:
   - ID_el
+  fields:
+  - name: Tipo_el
+    domain: Tipo_el
   geometry: line
   crs_epsg: 32633
 - name: Epuntuali

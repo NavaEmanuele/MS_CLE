@@ -27,12 +27,14 @@ def _setup_test_schemas(
     layers: list[dict] | None = None,
     topology_layers: list[dict] | None = None,
     topology_defaults: dict | None = None,
+    domains: list[dict] | None = None,
 ) -> Path:
     schema_root = root / "schemas_test"
     required_dirs = required_dirs or []
     layers = layers or []
     topology_layers = topology_layers or []
     topology_defaults = topology_defaults or {"min_overlap_area": 0.01, "micro_overlap_severity": "WARN"}
+    domains = domains or []
 
     _write_yaml(
         schema_root / "catalog.yaml",
@@ -41,12 +43,14 @@ def _setup_test_schemas(
                 "delivery": {
                     "fs_schema": "delivery/fs_structure.yaml",
                     "layers_schema": "delivery/layers.yaml",
+                    "domains_schema": "delivery/domains.yaml",
                     "topology_schema": "delivery/topology.yaml",
                     "mdb_schema": "delivery/mdb.yaml",
                 },
                 "incoming": {
                     "fs_schema": "incoming/fs_structure.yaml",
                     "layers_schema": "incoming/layers.yaml",
+                    "domains_schema": "incoming/domains.yaml",
                     "topology_schema": "incoming/topology.yaml",
                     "mdb_schema": "incoming/mdb.yaml",
                     "mappings": "incoming/mappings.yaml",
@@ -67,10 +71,12 @@ def _setup_test_schemas(
         },
     )
     _write_yaml(schema_root / "delivery" / "layers.yaml", {"version": 1, "layers": layers})
+    _write_yaml(schema_root / "delivery" / "domains.yaml", {"version": 1, "domains": domains})
     _write_yaml(schema_root / "delivery" / "topology.yaml", {"version": 1, "defaults": topology_defaults, "layers": topology_layers})
     _write_yaml(schema_root / "delivery" / "mdb.yaml", {"version": 1, "mdb_files_glob": [], "tables": [], "relations": []})
     _write_yaml(schema_root / "incoming" / "fs_structure.yaml", {"profiles": {"ms": {"required_dirs": [], "required_files_glob": []}}})
     _write_yaml(schema_root / "incoming" / "layers.yaml", {"version": 1, "layers": []})
+    _write_yaml(schema_root / "incoming" / "domains.yaml", {"version": 1, "domains": []})
     _write_yaml(schema_root / "incoming" / "topology.yaml", {"version": 1, "defaults": topology_defaults, "layers": []})
     _write_yaml(schema_root / "incoming" / "mdb.yaml", {"version": 1, "mdb_files_glob": [], "tables": [], "relations": []})
     _write_yaml(schema_root / "incoming" / "mappings.yaml", {"mappings": []})
@@ -251,5 +257,44 @@ def test_validate_topology_micro_overlap_uses_configurable_severity(monkeypatch)
 
         assert exit_code == 0
         assert any(item["check_id"] == "TOP021" and item["severity"] == "INFO" for item in payload["findings"])
+    finally:
+        shutil.rmtree(tmp_path, ignore_errors=True)
+
+
+def test_validate_domain_allowed_reports_dom010(monkeypatch) -> None:
+    tmp_path = _new_tmp_dir("tmp_test_validate_domain")
+    try:
+        layer_path = "GeoTec/test_domain.shp"
+        schema_root = _setup_test_schemas(
+            tmp_path,
+            layers=[
+                {
+                    "name": "test_domain",
+                    "path": layer_path,
+                    "required_fields": [],
+                    "not_null_fields": [],
+                    "unique_fields": [],
+                    "fields": [{"name": "Tipo_el", "domain": "Tipo_el"}],
+                }
+            ],
+            domains=[{"name": "Tipo_el", "allowed": ["A", "B"], "severity": "WARN"}],
+        )
+        monkeypatch.setenv("HUXLEYI_SCHEMAS_ROOT", str(schema_root))
+
+        workspace = tmp_path / "workspace_domain"
+        shp = workspace / layer_path
+        shp.parent.mkdir(parents=True, exist_ok=True)
+        gdf = gpd.GeoDataFrame(
+            {"Tipo_el": ["A", "X"], "geometry": [Point(10, 45), Point(11, 46)]},
+            crs="EPSG:32633",
+        )
+        gdf.to_file(shp)
+        outdir = tmp_path / "out_domain"
+
+        exit_code = main(["validate", str(workspace), "--out", str(outdir), "--kind", "delivery", "--profile", "ms"])
+        payload = json.loads((outdir / "report.json").read_text(encoding="utf-8"))
+
+        assert exit_code == 0
+        assert any(item["check_id"] == "DOM010" and item["severity"] == "WARN" for item in payload["findings"])
     finally:
         shutil.rmtree(tmp_path, ignore_errors=True)

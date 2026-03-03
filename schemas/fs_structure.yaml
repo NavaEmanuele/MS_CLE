@@ -1,0 +1,48 @@
+profiles:
+  ms:
+    required_dirs:
+      - BasiDati
+      - GeoTec
+      - Indagini
+      - MS1
+      - MS2
+      - Plot
+    required_files_glob:
+      - BasiDati/**/*.mdb
+      - GeoTec/**/*.shp
+      - Indagini/**/*.shp
+      - MS1/**/*.shp
+      - MS1/**/*.mdb
+      - MS2/**/*.mdb
+  cle:
+    required_dirs:
+      - CLE
+      - Plot
+    required_files_glob:
+      - CLE/**/*.mdb
+      - Plot/CLE/**/*.pdf
+  mscle:
+    required_dirs:
+      - BasiDati
+      - CLE
+      - GeoTec
+      - Indagini
+      - MS1
+      - MS2
+      - Plot
+    required_files_glob:
+      - BasiDati/**/*.mdb
+      - CLE/**/*.mdb
+      - GeoTec/**/*.shp
+      - Indagini/**/*.shp
+      - MS1/**/*.shp
+      - MS1/**/*.mdb
+      - MS2/**/*.mdb
+      - Plot/CLE/**/*.pdf
+warn_on_extra_dirs: true
+ignore_dirs_glob:
+  - .pytest_cache
+  - .tmp_pytest
+  - tmp*
+  - output
+  - data_private

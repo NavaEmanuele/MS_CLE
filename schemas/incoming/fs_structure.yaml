@@ -1,0 +1,15 @@
+profiles:
+  ms:
+    required_dirs: []
+    required_files_glob: []
+  cle:
+    required_dirs: []
+    required_files_glob: []
+  mscle:
+    required_dirs: []
+    required_files_glob: []
+warn_on_extra_dirs: false
+ignore_dirs_glob:
+  - .pytest_cache
+  - .tmp_pytest
+  - tmp*

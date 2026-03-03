@@ -1,0 +1,6 @@
+kinds:
+  delivery:
+    fs_schema: delivery/fs_structure.yaml
+  incoming:
+    fs_schema: incoming/fs_structure.yaml
+    mappings: incoming/mappings.yaml

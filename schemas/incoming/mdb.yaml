@@ -2,6 +2,7 @@ version: 1
 databases:
   - name: "cle_db"
     globs:
+      - "CLE/CLE_db.mdb"
       - "CLE/CLE_db_*.mdb"
     required_for_profiles:
       - "cle"

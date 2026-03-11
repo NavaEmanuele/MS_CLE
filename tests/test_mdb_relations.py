@@ -89,7 +89,14 @@ def test_check_relations_reports_missing_id_count_one() -> None:
         )
         rel_findings = [f for f in findings if f.check_id == "MDB040"]
         assert rel_findings
-        assert rel_findings[0].details.get("missing_count") == 1
+        details = rel_findings[0].details or {}
+        assert details.get("missing_count") == 1
+        assert details.get("relation_type") == "missing_references"
+        assert details.get("operational_class") == "RETURN_TO_PROFESSIONAL"
+        assert details.get("missing_values_truncated") is False
+        assert details.get("context", {}).get("validation_stage") == "mdb_relation_check"
+        assert details.get("decision", {}).get("can_fix_internally") is False
+        assert details.get("decision", {}).get("requires_professional") is True
     finally:
         shutil.rmtree(tmp_path, ignore_errors=True)
 
@@ -167,7 +174,23 @@ def test_validate_mdb_pyodbc_failure_reports_mdb010_warn(monkeypatch) -> None:
         payload = json.loads((outdir / "report.json").read_text(encoding="utf-8"))
 
         assert exit_code == 0
-        assert any(f["check_id"] == "MDB010" and f["severity"] == "WARN" for f in payload["findings"])
+        mdb010 = next((f for f in payload["findings"] if f["check_id"] == "MDB010" and f["severity"] == "WARN"), None)
+        assert mdb010 is not None
+        details = mdb010["details"]
+        assert details["database"] == "cle_db"
+        assert details["error"] == "driver unavailable"
+        assert details["operational_class"] == "NEEDS_TECHNICAL_REVIEW"
+        assert details["error_origin_guess"] == "internal_environment"
+        assert details["read_stage"] == "driver_connect"
+        assert details["decision"]["can_fix_internally"] is True
+        assert details["decision"]["requires_professional"] is False
+        assert details["decision"]["blocks_submission"] is False
+        assert details["decision"]["needs_manual_review"] is True
+        assert details["workflow"]["assigned_to"] == "interno"
+        assert details["workflow"]["status"] == "open"
+        assert details["context"]["kind"] == "delivery"
+        assert details["context"]["profile"] == "cle"
+        assert details["context"]["validation_stage"] == "mdb_read_check"
     finally:
         shutil.rmtree(tmp_path, ignore_errors=True)
 

@@ -41,3 +41,8 @@ La priorita' piu' alta oggi non e' aggiungere nuove validazioni, ma spostare que
 2. Analizzare `GEO010` su `urbanizzato_polygon.shp`
 3. Valutare se aggiungere un comando o report più esplicito per la baseline Bedizzole
 4. Solo dopo: iniziare il refactor di `validators/`
+
+
+1. Verificare il ramo MDB040 missing references con test mirato
+2. Fare commit della milestone MDB040
+3. Decidere se intervenire su FS100 oppure consolidare altri finding MDB

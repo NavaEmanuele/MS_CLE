@@ -312,6 +312,22 @@ def check_relations(
                             "to_field": to_field,
                             "missing_count": len(missing_values),
                             "missing_values_sample": missing_values[:3],
+                            "relation_type": "missing_references",
+                            "operational_class": "RETURN_TO_PROFESSIONAL",
+                            "decision": {
+                                "can_fix_internally": False,
+                                "requires_professional": True,
+                                "blocks_submission": True,
+                                "needs_manual_review": True,
+                            },
+                            "workflow": {
+                                "assigned_to": "professionista",
+                                "status": "open",
+                            },
+                            "context": {
+                                "validation_stage": "mdb_relation_check",
+                            },
+                            "missing_values_truncated": len(missing_values) > 3,
                         },
                     )
                 )
@@ -409,6 +425,22 @@ def check_tables_and_relations(
                             "to_field": to_field,
                             "missing_count": len(missing_values),
                             "missing_values_sample": [str(v) for v in missing_values[:20]],
+                            "relation_type": "missing_references",
+                            "operational_class": "RETURN_TO_PROFESSIONAL",
+                            "decision": {
+                                "can_fix_internally": False,
+                                "requires_professional": True,
+                                "blocks_submission": True,
+                                "needs_manual_review": True,
+                            },
+                            "workflow": {
+                                "assigned_to": "professionista",
+                                "status": "open",
+                            },
+                            "context": {
+                                "validation_stage": "mdb_relation_check",
+                            },
+                            "missing_values_truncated": len(missing_values) > 20,
                         },
                     )
                 )

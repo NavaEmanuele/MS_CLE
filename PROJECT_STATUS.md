@@ -94,3 +94,19 @@ Questo e' il task minimo utile per:
 - stato baseline attuale:
   - WARN: cartelle extra `Progetti`, `Vestiture`
   - BLOCKER: `GEO010` su `BasiDati/urbanizzato_polygon.shp` con 10 geometrie invalide
+
+
+
+  - GEO010 arricchito con dettaglio feature/ID/motivi e decisione operativa
+- MDB020 già arricchito in modo retrocompatibile con decisione operativa e contesto
+
+
+- MDB040 (missing references) arricchito in `huxleyi_ms_cle/mdb.py`
+- aggiunti metadati operativi retrocompatibili:
+  - relation_type
+  - operational_class
+  - decision
+  - workflow
+  - context
+  - missing_values_truncated
+- altri sotto-casi MDB040 lasciati invariati

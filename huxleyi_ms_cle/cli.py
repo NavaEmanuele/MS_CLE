@@ -15,6 +15,7 @@ from typing import Any
 
 import geopandas as gpd
 import yaml
+from shapely.validation import explain_validity
 
 from .build import build_delivery
 from .mdb import check_relations, check_tables_required, find_mdb_files, try_read_mdb_pyodbc, write_sqlite
@@ -408,7 +409,14 @@ def _match_domain_rule(domain_name: str, compiled_domains: list[dict[str, Any]])
     return None
 
 
-def _validate_layers(workspace: Path, layers_schema: dict[str, Any], domains_schema: dict[str, Any] | None = None) -> list[Finding]:
+def _validate_layers(
+    workspace: Path,
+    layers_schema: dict[str, Any],
+    domains_schema: dict[str, Any] | None = None,
+    *,
+    kind: str | None = None,
+    profile: str | None = None,
+) -> list[Finding]:
     findings: list[Finding] = []
     compiled_domains = _compile_domains(domains_schema or {"domains": []})
     for layer in layers_schema.get("layers", []):
@@ -546,13 +554,69 @@ def _validate_layers(workspace: Path, layers_schema: dict[str, Any], domains_sch
             invalid_mask = ~gdf.geometry.is_valid.fillna(False)
             invalid_count = int(invalid_mask.sum())
             if invalid_count > 0:
+                invalid_rows = gdf.loc[invalid_mask]
+                id_field = next(
+                    (
+                        field_name
+                        for field_name in ["T_ID", "ET_ID", "ID", "ID_OBJ", "OBJECTID", "FID"]
+                        if field_name in invalid_rows.columns
+                    ),
+                    None,
+                )
+                invalid_features: list[dict[str, Any]] = []
+                reason_summary: set[str] = set()
+                for feature_index, row in invalid_rows.iterrows():
+                    feature_id = None
+                    if id_field is not None:
+                        raw_id = row.get(id_field)
+                        if raw_id is not None and raw_id == raw_id:
+                            feature_id = str(raw_id)
+                    geom = row.geometry
+                    validity_reason = "NULL geometry" if geom is None else explain_validity(geom)
+                    if isinstance(validity_reason, str) and validity_reason:
+                        reason_summary.add(validity_reason.split("[", 1)[0].strip())
+                    invalid_features.append(
+                        {
+                            "feature_index": int(feature_index),
+                            "feature_id": feature_id,
+                            "validity_reason": validity_reason,
+                        }
+                    )
+                feature_indexes = [item["feature_index"] for item in invalid_features]
+                feature_ids = [item["feature_id"] for item in invalid_features if item["feature_id"] is not None]
                 findings.append(
                     _mk_finding(
                         "GEO010",
                         SEVERITY_BLOCKER,
                         f"Invalid geometries found: {invalid_count}",
                         str(shp_path),
-                        {"layer": relpath, "invalid_count": invalid_count},
+                        {
+                            "layer": relpath,
+                            "invalid_count": invalid_count,
+                            "feature_indexes": feature_indexes,
+                            "feature_ids": feature_ids,
+                            "reason_summary": sorted(reason_summary),
+                            "invalid_features": invalid_features,
+                            "operational_class": "RETURN_TO_PROFESSIONAL",
+                            "decision": {
+                                "recommended_action": "Rimandare al professionista per correzione del layer e nuova consegna",
+                                "can_fix_internally": False,
+                                "requires_professional": True,
+                                "blocks_submission": True,
+                                "needs_manual_review": True,
+                            },
+                            "workflow": {
+                                "assigned_to": "professionista",
+                                "status": "open",
+                                "internal_note": "Produrre elenco feature invalide per la preistruttoria tecnica",
+                            },
+                            "context": {
+                                "kind": kind,
+                                "profile": profile,
+                                "geometry_check": "is_valid",
+                                "id_field": id_field,
+                            },
+                        },
                     )
                 )
 
@@ -647,7 +711,14 @@ def _validate_topology(workspace: Path, topology_schema: dict[str, Any]) -> list
     return findings
 
 
-def _validate_mdb(workspace: Path, outdir: Path, profile: str, mdb_schema: dict[str, Any]) -> list[Finding]:
+def _validate_mdb(
+    workspace: Path,
+    outdir: Path,
+    profile: str,
+    mdb_schema: dict[str, Any],
+    *,
+    kind: str | None = None,
+) -> list[Finding]:
     findings: list[Finding] = []
     db_entries = [d for d in mdb_schema.get("databases", []) if isinstance(d, dict)]
     # Backward compatibility for legacy single-db schema.
@@ -685,7 +756,27 @@ def _validate_mdb(workspace: Path, outdir: Path, profile: str, mdb_schema: dict[
                         SEVERITY_BLOCKER,
                         f"Required MDB database not found: {db_name}",
                         str(workspace),
-                        {"database": db_name, "globs": globs},
+                        {
+                            "database": db_name,
+                            "globs": globs,
+                            "operational_class": "RETURN_TO_PROFESSIONAL",
+                            "decision": {
+                                "can_fix_internally": False,
+                                "requires_professional": True,
+                                "blocks_submission": True,
+                                "needs_manual_review": False,
+                            },
+                            "workflow": {
+                                "assigned_to": "professionista",
+                                "status": "open",
+                            },
+                            "context": {
+                                "kind": kind,
+                                "profile": profile,
+                                "database_required": True,
+                                "validation_stage": "mdb_presence_check",
+                            },
+                        },
                     )
                 )
             continue
@@ -694,13 +785,57 @@ def _validate_mdb(workspace: Path, outdir: Path, profile: str, mdb_schema: dict[
         try:
             tables = try_read_mdb_pyodbc(mdb_path)
         except Exception as exc:
+            error_text = str(exc)
+            error_lower = error_text.lower()
+            error_origin_guess = "unknown"
+            read_stage = "unknown"
+            if "pyodbc not available" in error_lower:
+                error_origin_guess = "internal_environment"
+                read_stage = "pyodbc_import"
+            elif any(token in error_lower for token in ["driver", "odbc", "data source name not found"]):
+                error_origin_guess = "internal_environment"
+                read_stage = "driver_connect"
+            elif any(
+                token in error_lower
+                for token in [
+                    "not a valid file",
+                    "unrecognized database format",
+                    "could not use",
+                    "corrupt",
+                    "damaged",
+                    "already in use",
+                ]
+            ):
+                error_origin_guess = "package_file"
+                read_stage = "table_scan"
             findings.append(
                 _mk_finding(
                     "MDB010",
                     SEVERITY_WARN,
                     f"MDB '{db_name}' not readable via pyodbc. Install Microsoft Access Database Engine/ODBC driver.",
                     str(mdb_path),
-                    {"database": db_name, "error": str(exc)},
+                    {
+                        "database": db_name,
+                        "error": error_text,
+                        "operational_class": "NEEDS_TECHNICAL_REVIEW",
+                        "decision": {
+                            "can_fix_internally": True,
+                            "requires_professional": False,
+                            "blocks_submission": False,
+                            "needs_manual_review": True,
+                        },
+                        "workflow": {
+                            "assigned_to": "interno",
+                            "status": "open",
+                        },
+                        "context": {
+                            "kind": kind,
+                            "profile": profile,
+                            "validation_stage": "mdb_read_check",
+                        },
+                        "error_origin_guess": error_origin_guess,
+                        "read_stage": read_stage,
+                    },
                 )
             )
             # As requested, skip relation checks when DB is not readable.
@@ -991,11 +1126,27 @@ def _validate(workspace: Path, outdir: Path, kind: str | None, profile: str | No
         findings.extend(_validate_fs(workspace, fs_schema, resolved_profile))
         layers_schema = _load_layers_schema(resolved_kind)
         domains_schema = _load_domains_schema(resolved_kind)
-        findings.extend(_validate_layers(workspace, layers_schema, domains_schema))
+        findings.extend(
+            _validate_layers(
+                workspace,
+                layers_schema,
+                domains_schema,
+                kind=resolved_kind,
+                profile=resolved_profile,
+            )
+        )
         topology_schema = _load_topology_schema(resolved_kind)
         findings.extend(_validate_topology(workspace, topology_schema))
         mdb_schema = _load_mdb_schema(resolved_kind)
-        findings.extend(_validate_mdb(workspace, outdir, resolved_profile, mdb_schema))
+        findings.extend(
+            _validate_mdb(
+                workspace,
+                outdir,
+                resolved_profile,
+                mdb_schema,
+                kind=resolved_kind,
+            )
+        )
 
     report = Report(
         command="validate",

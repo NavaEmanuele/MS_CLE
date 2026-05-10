@@ -1,3 +1,3 @@
-from .fs_structure import validate_fs_structure
+from .fs import validate_filesystem, validate_fs_structure
 
-__all__ = ["validate_fs_structure"]
+__all__ = ["validate_fs_structure", "validate_filesystem"]

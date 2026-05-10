@@ -133,6 +133,7 @@ def test_validate_workspace_ok_has_no_blockers(monkeypatch) -> None:
 
         assert exit_code == 0
         assert payload["summary"]["blocker"] == 0
+        assert (outdir / "report.html").exists()
     finally:
         shutil.rmtree(tmp_path, ignore_errors=True)
 

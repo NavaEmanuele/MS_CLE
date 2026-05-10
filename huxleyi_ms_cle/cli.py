@@ -20,6 +20,7 @@ from shapely.validation import explain_validity
 from .build import build_delivery
 from .mdb import check_relations, check_tables_required, find_mdb_files, try_read_mdb_pyodbc, write_sqlite
 from .reporting import Finding, Report, build_summary, write_report_html, write_report_json
+from .validators.fs import validate_filesystem
 
 SEVERITY_BLOCKER = "BLOCKER"
 SEVERITY_WARN = "WARN"
@@ -252,63 +253,6 @@ def _mk_finding(
         location=location,
         details=details,
     )
-
-
-def _validate_fs(workspace: Path, schema: dict[str, Any], profile: str) -> list[Finding]:
-    findings: list[Finding] = []
-    profile_cfg = schema.get("profiles", {}).get(profile, {})
-    required_dirs = profile_cfg.get("required_dirs", [])
-    required_files_glob = profile_cfg.get("required_files_glob", [])
-
-    for required_dir in required_dirs:
-        required_path = workspace / required_dir
-        if not required_path.exists() or not required_path.is_dir():
-            findings.append(
-                _mk_finding(
-                    "FS001",
-                    SEVERITY_BLOCKER,
-                    f"Required directory missing: {required_dir}",
-                    str(required_path),
-                    {"required_dir": required_dir, "profile": profile},
-                )
-            )
-
-    for pattern in required_files_glob:
-        matches = [p for p in workspace.glob(pattern) if p.is_file()]
-        if not matches:
-            findings.append(
-                _mk_finding(
-                    "FS002",
-                    SEVERITY_BLOCKER,
-                    f"Required file pattern not found: {pattern}",
-                    str(workspace),
-                    {"pattern": pattern, "profile": profile},
-                )
-            )
-
-    warn_on_extra_dirs = bool(schema.get("warn_on_extra_dirs", False))
-    ignore_patterns = schema.get("ignore_dirs_glob", [])
-    if warn_on_extra_dirs:
-        required_top = {str(d).split("/")[0] for d in required_dirs}
-        actual_top = [entry for entry in workspace.iterdir() if entry.is_dir()]
-        for entry in actual_top:
-            name = entry.name
-            rel = str(entry.relative_to(workspace)).replace("\\", "/")
-            if name in required_top:
-                continue
-            if any(fnmatch(name, ignore) or fnmatch(rel, ignore) for ignore in ignore_patterns):
-                continue
-            findings.append(
-                _mk_finding(
-                    "FS100",
-                    SEVERITY_WARN,
-                    f"Extra directory found: {name}",
-                    str(entry),
-                    {"directory": name, "profile": profile},
-                )
-            )
-
-    return findings
 
 
 def _candidate_id_columns(columns: list[str]) -> list[str]:
@@ -1123,7 +1067,7 @@ def _validate(workspace: Path, outdir: Path, kind: str | None, profile: str | No
             resolved_profile = "ms"
         metadata["kind"] = resolved_kind
         metadata["profile"] = resolved_profile
-        findings.extend(_validate_fs(workspace, fs_schema, resolved_profile))
+        findings.extend(validate_filesystem(workspace, fs_schema, resolved_profile))
         layers_schema = _load_layers_schema(resolved_kind)
         domains_schema = _load_domains_schema(resolved_kind)
         findings.extend(

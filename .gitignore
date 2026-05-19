@@ -66,9 +66,17 @@ Thumbs.db
 
 # Project local data/output
 data_private/
+data/
 output/
+outputs/
+04_OUTPUT_ANALISI/
+config/paths.local.yaml
 *.sqlite
 *.gpkg
+*.mdb
+*.zip
+*.7z
+*.rar
 .pytest_cache/
 .tmp_pytest/
 pytest-cache-files-*/
@@ -78,4 +86,3 @@ tmp*/
 venv/
 __pycache__/
 *.pyc
-

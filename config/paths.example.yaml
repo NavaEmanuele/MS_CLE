@@ -1,0 +1,24 @@
+# Copia questo file in config/paths.local.yaml e modifica i percorsi locali.
+# Il file paths.local.yaml non deve essere caricato su GitHub se contiene percorsi personali.
+
+data_root: "G:/GEO_PORTALE_MS_CLE"
+output_dir: "G:/GEO_PORTALE_MS_CLE/04_OUTPUT_ANALISI/scan_geoportale"
+expected_epsg: 32633
+
+overlap_min_area_m2: 0.01
+
+# Range indicativo per intercettare geometrie evidentemente fuori posto in Lombardia / UTM33N.
+# Serve per casi come feature in Gauss-Boaga inserite in un dataset dichiarato EPSG:32633.
+lombardia_bounds_utm33:
+  minx: 450000
+  maxx: 750000
+  miny: 4980000
+  maxy: 5165000
+
+datasets:
+  - name: MS_pubblicato
+    kind: MS
+    path: "01_GDB_PUBBLICATI_ORIGINALI/microzonazione_sismica_aggiornamento.gdb"
+  - name: CLE_pubblicato
+    kind: CLE
+    path: "01_GDB_PUBBLICATI_ORIGINALI/CLE.gdb"

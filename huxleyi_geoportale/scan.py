@@ -28,21 +28,32 @@ class ScanResult:
 
 
 def _write_csv(path: Path, rows: Iterable[dict]) -> int:
+    """Write rows to CSV using the union of keys found in all rows."""
+
     rows = list(rows)
     path.parent.mkdir(parents=True, exist_ok=True)
     if not rows:
         path.write_text("", encoding="utf-8")
         return 0
-    fieldnames = list(rows[0].keys())
+
+    fieldnames: list[str] = []
+    for row in rows:
+        for key in row.keys():
+            if key not in fieldnames:
+                fieldnames.append(key)
+
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
     return len(rows)
 
 
 def _safe_bounds(gdf: gpd.GeoDataFrame) -> tuple[float | None, float | None, float | None, float | None]:
-    if gdf.empty or gdf.geometry.is_empty.all():
+    if gdf.empty:
+        return (None, None, None, None)
+    geom = gdf.geometry
+    if geom.isna().all() or geom.is_empty.fillna(True).all():
         return (None, None, None, None)
     minx, miny, maxx, maxy = gdf.total_bounds
     return (float(minx), float(miny), float(maxx), float(maxy))
@@ -57,11 +68,19 @@ def _epsg(gdf: gpd.GeoDataFrame) -> int | None:
         return None
 
 
-def _looks_outside_lombardia(bounds: tuple[float | None, float | None, float | None, float | None], cfg: ScanConfig) -> bool:
+def _looks_outside_lombardia(
+    bounds: tuple[float | None, float | None, float | None, float | None],
+    cfg: ScanConfig,
+) -> bool:
     minx, miny, maxx, maxy = bounds
     if None in bounds:
         return False
-    return bool(maxx < cfg.lombardia_minx or minx > cfg.lombardia_maxx or maxy < cfg.lombardia_miny or miny > cfg.lombardia_maxy)
+    return bool(
+        maxx < cfg.lombardia_minx
+        or minx > cfg.lombardia_maxx
+        or maxy < cfg.lombardia_miny
+        or miny > cfg.lombardia_maxy
+    )
 
 
 def _geometry_hash(geom: BaseGeometry | None) -> str | None:
@@ -70,13 +89,15 @@ def _geometry_hash(geom: BaseGeometry | None) -> str | None:
     return hashlib.sha256(geom.wkb).hexdigest()
 
 
-def _candidate_comune_field(columns: list[str]) -> str | None:
+def _candidate_comune_field(gdf: gpd.GeoDataFrame) -> str | None:
     preferred = ["COMUNE", "Comune", "comune", "NOME_COM", "NOME_COMUNE", "denom_com", "DENOM_COM"]
     for name in preferred:
-        if name in columns:
+        if name in gdf.columns:
             return name
-    for column in columns:
-        if "com" in column.lower() and gpd.pd.api.types.is_object_dtype(column):
+    for column in gdf.columns:
+        if column == gdf.geometry.name:
+            continue
+        if "com" in column.lower() and pd.api.types.is_object_dtype(gdf[column]):
             return column
     return None
 
@@ -92,7 +113,19 @@ def _read_layer(dataset_path: Path, layer_name: str) -> gpd.GeoDataFrame:
     return gpd.read_file(dataset_path, layer=layer_name, engine="pyogrio")
 
 
-def _scan_layer(cfg: ScanConfig, dataset_name: str, dataset_kind: str, dataset_path: Path, layer_name: str) -> tuple[list[dict], list[dict], list[dict], list[dict], list[dict], list[dict]]:
+def _feature_id(row: pd.Series, oid_field: str | None, fallback_index: object) -> object:
+    if oid_field and oid_field in row.index:
+        return row.get(oid_field)
+    return fallback_index
+
+
+def _scan_layer(
+    cfg: ScanConfig,
+    dataset_name: str,
+    dataset_kind: str,
+    dataset_path: Path,
+    layer_name: str,
+) -> tuple[list[dict], list[dict], list[dict], list[dict], list[dict], list[dict]]:
     inventory_rows: list[dict] = []
     field_rows: list[dict] = []
     geometry_rows: list[dict] = []
@@ -112,7 +145,7 @@ def _scan_layer(cfg: ScanConfig, dataset_name: str, dataset_kind: str, dataset_p
             "path": str(dataset_path),
             "layer": layer_name,
             "feature_count": int(len(gdf)),
-            "geometry_type": str(gdf.geom_type.dropna().unique().tolist()),
+            "geometry_type": str(gdf.geom_type.dropna().unique().tolist()) if not gdf.empty else "[]",
             "epsg": epsg,
             "minx": bounds[0],
             "miny": bounds[1],
@@ -139,7 +172,7 @@ def _scan_layer(cfg: ScanConfig, dataset_name: str, dataset_kind: str, dataset_p
         )
 
     oid_field = _candidate_objectid_field(list(gdf.columns))
-    comune_field = _candidate_comune_field(list(gdf.columns))
+    comune_field = _candidate_comune_field(gdf)
 
     if epsg != cfg.expected_epsg:
         attribute_rows.append(
@@ -148,6 +181,7 @@ def _scan_layer(cfg: ScanConfig, dataset_name: str, dataset_kind: str, dataset_p
                 "kind": dataset_kind,
                 "layer": layer_name,
                 "feature_id": None,
+                "comune": None,
                 "field": "CRS",
                 "value": epsg,
                 "issue": f"Expected EPSG:{cfg.expected_epsg}",
@@ -162,7 +196,7 @@ def _scan_layer(cfg: ScanConfig, dataset_name: str, dataset_kind: str, dataset_p
                 "dataset": dataset_name,
                 "kind": dataset_kind,
                 "layer": layer_name,
-                "feature_id": row.get(oid_field, idx) if oid_field else idx,
+                "feature_id": _feature_id(row, oid_field, idx),
                 "comune": row.get(comune_field) if comune_field else None,
                 "issue": "Invalid geometry",
                 "severity": "BLOCKER",
@@ -198,7 +232,7 @@ def _scan_layer(cfg: ScanConfig, dataset_name: str, dataset_kind: str, dataset_p
                         "dataset": dataset_name,
                         "kind": dataset_kind,
                         "layer": layer_name,
-                        "feature_id": row.get(oid_field, idx) if oid_field else idx,
+                        "feature_id": _feature_id(row, oid_field, idx),
                         "comune": row.get(comune_field) if comune_field else None,
                         "geometry_hash": row["__geometry_hash"],
                         "issue": "Exact duplicate geometry candidate",
@@ -215,7 +249,8 @@ def _scan_layer(cfg: ScanConfig, dataset_name: str, dataset_kind: str, dataset_p
                         "dataset": dataset_name,
                         "kind": dataset_kind,
                         "layer": layer_name,
-                        "feature_id": row.get(oid_field, idx) if oid_field else idx,
+                        "feature_id": _feature_id(row, oid_field, idx),
+                        "comune": row.get(comune_field) if comune_field else None,
                         "field": field,
                         "value": row.get(field),
                         "issue": "Missing URL",
@@ -232,7 +267,8 @@ def _scan_layer(cfg: ScanConfig, dataset_name: str, dataset_kind: str, dataset_p
                         "dataset": dataset_name,
                         "kind": dataset_kind,
                         "layer": layer_name,
-                        "feature_id": row.get(oid_field, idx) if oid_field else idx,
+                        "feature_id": _feature_id(row, oid_field, idx),
+                        "comune": row.get(comune_field) if comune_field else None,
                         "field": field,
                         "value": row.get(field),
                         "issue": "DESCR longer than 80 characters",
@@ -265,6 +301,7 @@ def scan_geoportale(config_path: Path, output_override: Path | None = None) -> S
                     "dataset": dataset.name,
                     "kind": dataset.kind,
                     "path": str(dataset.path),
+                    "layer": None,
                     "issue": "Dataset path does not exist",
                     "severity": "BLOCKER",
                 }
@@ -279,6 +316,7 @@ def scan_geoportale(config_path: Path, output_override: Path | None = None) -> S
                     "dataset": dataset.name,
                     "kind": dataset.kind,
                     "path": str(dataset.path),
+                    "layer": None,
                     "issue": f"Cannot list layers: {exc}",
                     "severity": "BLOCKER",
                 }
@@ -328,7 +366,6 @@ def scan_geoportale(config_path: Path, output_override: Path | None = None) -> S
     ]
     _write_csv(out_dir / "00_summary.csv", summary_rows)
 
-    # Optional Excel summary when openpyxl is installed.
     try:
         with pd.ExcelWriter(out_dir / "riepilogo_scan_geoportale.xlsx") as writer:
             pd.DataFrame(summary_rows).to_excel(writer, index=False, sheet_name="summary")
